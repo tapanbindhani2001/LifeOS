@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Plus, MoreVertical, Trash2, Calendar as CalendarIcon, ListTodo } from 'lucide-react'
+import { Plus, Trash2, Calendar as CalendarIcon, ListTodo } from 'lucide-react'
 import { format } from 'date-fns'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Modal, ConfirmDialog, EmptyState, Skeleton } from '@/components/ui/Overlay'
@@ -24,7 +24,6 @@ export default function TasksPage() {
   const [editing, setEditing] = useState<Task | null>(null)
   const [deleting, setDeleting] = useState<Task | null>(null)
   const [dragOverCol, setDragOverCol] = useState<TaskStatus | null>(null)
-  const [menuFor, setMenuFor] = useState<string | null>(null)
 
   const openCreate = () => {
     setEditing(null)
@@ -33,15 +32,30 @@ export default function TasksPage() {
   const openEdit = (task: Task) => {
     setEditing(task)
     setFormOpen(true)
-    setMenuFor(null)
   }
 
   const handleSubmit = (payload: TaskRequest) => {
+    console.log("TASKS PAGE SUBMIT CALLED!", payload)
     if (editing) {
       updateTask.mutate({ id: editing.id, payload }, { onSuccess: () => setFormOpen(false) })
     } else {
       createTask.mutate(payload, { onSuccess: () => setFormOpen(false) })
     }
+  }
+
+  const toggleTaskDone = (task: Task) => {
+    const newStatus: TaskStatus = task.status === 'DONE' ? 'TODO' : 'DONE'
+    updateTask.mutate({
+      id: task.id,
+      payload: {
+        title: task.title,
+        description: task.description,
+        status: newStatus,
+        priority: task.priority,
+        category: task.category,
+        dueDate: task.dueDate,
+      },
+    })
   }
 
   const moveTask = (task: Task, status: TaskStatus) => {
@@ -125,38 +139,35 @@ export default function TasksPage() {
                       onClick={() => openEdit(task)}
                       className="group card relative cursor-grab space-y-2 p-3.5 active:cursor-grabbing"
                     >
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium text-ink-900">{task.title}</p>
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-2.5 flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={task.status === 'DONE'}
+                            onChange={() => toggleTaskDone(task)}
+                            className="mt-1 h-4 w-4 rounded border-ink-300 text-brand-600 focus:ring-brand-500 cursor-pointer"
+                          />
+                          <p className={`text-sm font-medium text-ink-900 leading-tight ${
+                            task.status === 'DONE' ? 'line-through text-ink-400' : ''
+                          }`}>
+                            {task.title}
+                          </p>
+                        </div>
                         <button
                           onClick={(e) => {
                             e.stopPropagation()
-                            setMenuFor(menuFor === task.id ? null : task.id)
+                            setDeleting(task)
                           }}
-                          className="rounded-md p-1 text-ink-300 opacity-0 hover:bg-surface-muted group-hover:opacity-100"
+                          className="rounded-md p-1 text-ink-400 hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                          title="Delete task"
                         >
-                          <MoreVertical className="h-3.5 w-3.5" />
+                          <Trash2 className="h-3.5 w-3.5" />
                         </button>
-                        {menuFor === task.id && (
-                          <div
-                            className="absolute right-2 top-9 z-10 w-32 rounded-lg border border-surface-border bg-white p-1 shadow-popover"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <button
-                              onClick={() => {
-                                setDeleting(task)
-                                setMenuFor(null)
-                              }}
-                              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-xs text-red-600 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" /> Delete
-                            </button>
-                          </div>
-                        )}
                       </div>
                       {task.description && (
-                        <p className="line-clamp-2 text-xs text-ink-500">{task.description}</p>
+                        <p className="line-clamp-2 text-xs text-ink-500 pl-6.5">{task.description}</p>
                       )}
-                      <div className="flex items-center justify-between pt-1">
+                      <div className="flex items-center justify-between pt-1 pl-6.5">
                         <span className={`badge ${priorityBadgeClass(task.priority)}`}>{task.priority}</span>
                         {task.dueDate && (
                           <span className="flex items-center gap-1 text-[11px] text-ink-500">

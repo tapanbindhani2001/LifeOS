@@ -18,6 +18,7 @@ export function TaskForm({
   const [dueDate, setDueDate] = useState(initial?.dueDate?.slice(0, 10) ?? '')
 
   const handleSubmit = (e: React.FormEvent) => {
+    console.log("SUBMITTING TASK FORM!", { title, status, priority, dueDate })
     e.preventDefault()
     onSubmit({
       title,
@@ -25,7 +26,7 @@ export function TaskForm({
       status,
       priority,
       category: category || undefined,
-      dueDate: dueDate || undefined,
+      dueDate: dueDate ? `${dueDate}T00:00:00Z` : undefined,
     })
   }
 

@@ -26,6 +26,15 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     List<Notification> findAllByUserIdOrderByReadAscCreatedAtDesc(UUID userId);
 
     /**
+     * Checks if a notification with specific title already exists for a user.
+     *
+     * @param userId owner user ID
+     * @param title  notification title
+     * @return true if exists, false otherwise
+     */
+    boolean existsByUserIdAndTitle(UUID userId, String title);
+
+    /**
      * Counts the total number of unread notifications for a user (for UI badge updates).
      *
      * @param userId the owner user UUID

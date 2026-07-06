@@ -21,14 +21,17 @@ import java.util.stream.Collectors;
 public class CalendarEventService {
 
     private final CalendarEventRepository calendarEventRepository;
+    private final com.lifeos.notification.NotificationRepository notificationRepository;
 
     /**
      * Constructs a CalendarEventService.
      *
      * @param calendarEventRepository repository handling calendar events queries
+     * @param notificationRepository repository handling notification saves
      */
-    public CalendarEventService(CalendarEventRepository calendarEventRepository) {
+    public CalendarEventService(CalendarEventRepository calendarEventRepository, com.lifeos.notification.NotificationRepository notificationRepository) {
         this.calendarEventRepository = calendarEventRepository;
+        this.notificationRepository = notificationRepository;
     }
 
     private CalendarEventResponse mapToResponse(CalendarEvent event) {
@@ -118,6 +121,7 @@ public class CalendarEventService {
                 .build();
 
         CalendarEvent savedEvent = calendarEventRepository.save(event);
+
         return mapToResponse(savedEvent);
     }
 

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, Bell, Sun, Moon, LogOut, User as UserIcon, Settings } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -8,10 +8,42 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
   const { user, logout } = useAuth()
   const { data: unreadCount = 0 } = useUnreadCount()
   const [menuOpen, setMenuOpen] = useState(false)
-  const [dark, setDark] = useState(false)
+  const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark')
+
+  useEffect(() => {
+    const isDark = localStorage.getItem('theme') === 'dark'
+    setDark(isDark)
+    if (isDark) {
+      document.documentElement.classList.add('dark')
+    } else {
+      document.documentElement.classList.remove('dark')
+    }
+
+    const handleSync = () => {
+      setDark(localStorage.getItem('theme') === 'dark')
+    }
+    window.addEventListener('storage', handleSync)
+    return () => window.removeEventListener('storage', handleSync)
+  }, [])
+
+  const toggleTheme = () => {
+    setDark((prev) => {
+      const newVal = !prev
+      if (newVal) {
+        document.documentElement.classList.add('dark')
+        localStorage.setItem('theme', 'dark')
+      } else {
+        document.documentElement.classList.remove('dark')
+        localStorage.setItem('theme', 'light')
+      }
+      // Notify other components on this page immediately
+      window.dispatchEvent(new Event('storage'))
+      return newVal
+    })
+  }
 
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-surface-border bg-white/80 px-8 py-4 backdrop-blur">
+    <header className="relative z-20 flex items-center justify-between gap-4 border-b border-surface-border bg-white/80 px-8 py-4 backdrop-blur">
       <div>
         <h1 className="font-display text-xl font-bold text-ink-900">{title}</h1>
         {subtitle && <p className="text-sm text-ink-500">{subtitle}</p>}
@@ -31,7 +63,7 @@ export function Topbar({ title, subtitle }: { title: string; subtitle?: string }
         </div>
 
         <button
-          onClick={() => setDark((d) => !d)}
+          onClick={toggleTheme}
           className="flex h-9 w-9 items-center justify-center rounded-full text-ink-500 hover:bg-surface-muted"
           aria-label="Toggle theme"
         >

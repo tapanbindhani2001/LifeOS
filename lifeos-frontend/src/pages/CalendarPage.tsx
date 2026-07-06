@@ -46,7 +46,33 @@ export default function CalendarPage() {
     <AppLayout title="Calendar" subtitle="Plan your days, weeks, and everything in between.">
       <div className="mb-5 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <h2 className="font-display text-lg font-bold text-ink-900">{format(cursor, 'MMMM yyyy')}</h2>
+          <div className="flex items-center gap-1.5 h-8">
+            <select
+              value={cursor.getMonth()}
+              onChange={(e) => setCursor(new Date(cursor.getFullYear(), parseInt(e.target.value), 1))}
+              className="bg-transparent font-display text-lg font-bold text-ink-900 focus:outline-none cursor-pointer hover:text-brand-500"
+            >
+              {Array.from({ length: 12 }).map((_, idx) => (
+                <option key={idx} value={idx}>
+                  {format(new Date(2020, idx, 1), 'MMMM')}
+                </option>
+              ))}
+            </select>
+            <select
+              value={cursor.getFullYear()}
+              onChange={(e) => setCursor(new Date(parseInt(e.target.value), cursor.getMonth(), 1))}
+              className="bg-transparent font-display text-lg font-bold text-ink-900 focus:outline-none cursor-pointer hover:text-brand-500"
+            >
+              {Array.from({ length: 31 }).map((_, idx) => {
+                const yr = new Date().getFullYear() - 15 + idx;
+                return (
+                  <option key={yr} value={yr}>
+                    {yr}
+                  </option>
+                )
+              })}
+            </select>
+          </div>
           <div className="flex gap-1">
             <button
               onClick={() => setCursor((c) => subMonths(c, 1))}
@@ -194,8 +220,8 @@ function EventForm({
       title,
       description: description || undefined,
       location: location || undefined,
-      startTime: `${dateStr}T${startTime}:00`,
-      endTime: `${dateStr}T${endTime}:00`,
+      startTime: `${dateStr}T${startTime}:00Z`,
+      endTime: `${dateStr}T${endTime}:00Z`,
     })
   }
 

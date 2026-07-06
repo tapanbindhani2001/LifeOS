@@ -99,6 +99,14 @@ public class ExpenseService {
                 .build();
     }
 
+    private void validateTransactionDateNotLocked(LocalDate transactionDate) {
+        if (transactionDate == null) return;
+        LocalDate currentMonthStart = LocalDate.now().withDayOfMonth(1);
+        if (transactionDate.isBefore(currentMonthStart)) {
+            throw new BadRequestException("This month's expenses are closed and locked. You can only manage expenses for the current calendar month.");
+        }
+    }
+
     /**
      * Creates a new financial transaction.
      *
@@ -108,6 +116,7 @@ public class ExpenseService {
      */
     @Transactional
     public ExpenseResponse createExpense(User user, CreateExpenseRequest request) {
+        validateTransactionDateNotLocked(request.getTransactionDate());
         Expense expense = Expense.builder()
                 .user(user)
                 .amount(request.getAmount())
@@ -134,6 +143,9 @@ public class ExpenseService {
         Expense expense = expenseRepository.findByIdAndUserId(id, user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id: " + id));
 
+        validateTransactionDateNotLocked(expense.getTransactionDate());
+        validateTransactionDateNotLocked(request.getTransactionDate());
+
         expense.setAmount(request.getAmount());
         expense.setType(request.getType());
         expense.setCategory(request.getCategory());
@@ -154,6 +166,7 @@ public class ExpenseService {
     public void deleteExpense(User user, UUID id) {
         Expense expense = expenseRepository.findByIdAndUserId(id, user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Transaction not found with id: " + id));
+        validateTransactionDateNotLocked(expense.getTransactionDate());
         expenseRepository.delete(expense);
     }
 }

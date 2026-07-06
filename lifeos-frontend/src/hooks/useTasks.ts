@@ -14,7 +14,10 @@ export function useTasks(filters?: TaskFilters) {
 export function useCreateTask() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (payload: TaskRequest) => tasksApi.create(payload),
+    mutationFn: (payload: TaskRequest) => {
+      console.log("useCreateTask mutationFn called with:", payload)
+      return tasksApi.create(payload)
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks'] })
       toast.success('Task added')

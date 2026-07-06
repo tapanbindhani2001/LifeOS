@@ -56,10 +56,12 @@ public class ExpenseController {
     @GetMapping("/summary")
     public ApiResponse<ExpenseSummaryResponse> getSummary(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate start,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate end
     ) {
-        ExpenseSummaryResponse response = expenseService.getExpenseSummary(userDetails.getUser(), start, end);
+        LocalDate startVal = start != null ? start : LocalDate.now().withDayOfMonth(1);
+        LocalDate endVal = end != null ? end : LocalDate.now().plusMonths(1).withDayOfMonth(1).minusDays(1);
+        ExpenseSummaryResponse response = expenseService.getExpenseSummary(userDetails.getUser(), startVal, endVal);
         return ApiResponse.success(response, "Fetched transaction summary successfully");
     }
 

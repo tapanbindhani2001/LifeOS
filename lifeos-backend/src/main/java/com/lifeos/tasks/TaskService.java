@@ -36,6 +36,7 @@ public class TaskService {
                 .description(task.getDescription())
                 .completed(task.isCompleted())
                 .priority(task.getPriority())
+                .status(task.getStatus())
                 .category(task.getCategory())
                 .dueDate(task.getDueDate())
                 .createdAt(task.getCreatedAt())
@@ -80,12 +81,19 @@ public class TaskService {
      */
     @Transactional
     public TaskResponse createTask(User user, CreateTaskRequest request) {
+        TaskStatus status = request.getStatus() != null ? request.getStatus() : TaskStatus.TODO;
+        boolean completed = (status == TaskStatus.DONE) || request.isCompleted();
+        if (completed) {
+            status = TaskStatus.DONE;
+        }
+
         Task task = Task.builder()
                 .user(user)
                 .title(request.getTitle())
                 .description(request.getDescription())
-                .completed(request.isCompleted())
+                .completed(completed)
                 .priority(request.getPriority())
+                .status(status)
                 .category(request.getCategory())
                 .dueDate(request.getDueDate())
                 .build();
@@ -107,10 +115,19 @@ public class TaskService {
         Task task = taskRepository.findByIdAndUserId(taskId, user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
 
+        TaskStatus status = request.getStatus() != null ? request.getStatus() : task.getStatus();
+        boolean completed = (status == TaskStatus.DONE) || request.isCompleted();
+        if (completed && status != TaskStatus.DONE) {
+            status = TaskStatus.DONE;
+        } else if (!completed && status == TaskStatus.DONE) {
+            status = TaskStatus.TODO;
+        }
+
         task.setTitle(request.getTitle());
         task.setDescription(request.getDescription());
-        task.setCompleted(request.isCompleted());
+        task.setCompleted(completed);
         task.setPriority(request.getPriority());
+        task.setStatus(status);
         task.setCategory(request.getCategory());
         task.setDueDate(request.getDueDate());
 
@@ -130,7 +147,10 @@ public class TaskService {
         Task task = taskRepository.findByIdAndUserId(taskId, user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Task not found with id: " + taskId));
 
-        task.setCompleted(!task.isCompleted());
+        boolean newCompleted = !task.isCompleted();
+        task.setCompleted(newCompleted);
+        task.setStatus(newCompleted ? TaskStatus.DONE : TaskStatus.TODO);
+        
         Task savedTask = taskRepository.save(task);
         return mapToTaskResponse(savedTask);
     }

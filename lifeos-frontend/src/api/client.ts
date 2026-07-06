@@ -80,6 +80,7 @@ export async function apiGet<T>(url: string, params?: Record<string, unknown>): 
 }
 
 export async function apiPost<T>(url: string, body?: unknown): Promise<T> {
+  console.log("apiPost called with:", url, body)
   const res = await api.post(url, body)
   return res.data as T
 }

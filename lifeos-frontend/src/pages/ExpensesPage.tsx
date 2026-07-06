@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Plus, Trash2 } from 'lucide-react'
-import { format } from 'date-fns'
+import { format, startOfMonth, isBefore } from 'date-fns'
+import toast from 'react-hot-toast'
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Modal, ConfirmDialog, EmptyState, Skeleton } from '@/components/ui/Overlay'
@@ -93,35 +94,42 @@ export default function ExpensesPage() {
             />
           ) : (
             <div className="divide-y divide-surface-border">
-              {expenses.map((expense) => (
-                <div key={expense.id} className="group flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3">
-                    <span
-                      className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold text-white"
-                      style={{ background: categoryColor(expense.category) }}
-                    >
-                      {expense.category.charAt(0)}
-                    </span>
-                    <div>
-                      <p className="text-sm font-medium text-ink-900">
-                        {expense.description || expense.category}
-                      </p>
-                      <p className="text-xs text-ink-500">
-                        {format(new Date(expense.transactionDate), 'MMM d, yyyy')}
-                      </p>
+              {expenses.map((expense) => {
+                const isLocked = isBefore(new Date(expense.transactionDate), startOfMonth(new Date()))
+                return (
+                  <div key={expense.id} className="group flex items-center justify-between py-3">
+                    <div className="flex items-center gap-3">
+                      <span
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-xs font-bold text-white"
+                        style={{ background: categoryColor(expense.category) }}
+                      >
+                        {expense.category.charAt(0)}
+                      </span>
+                      <div>
+                        <p className="text-sm font-medium text-ink-900">
+                          {expense.description || expense.category}
+                        </p>
+                        <p className="text-xs text-ink-500">
+                          {format(new Date(expense.transactionDate), 'MMM d, yyyy')}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-semibold text-ink-900">{formatCurrency(expense.amount)}</span>
+                      {!isLocked ? (
+                        <button
+                          onClick={() => setDeleting(expense)}
+                          className="rounded-md p-1.5 text-ink-300 opacity-0 hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      ) : (
+                        <span className="text-xs text-ink-300 select-none">🔒 Locked</span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-semibold text-ink-900">{formatCurrency(expense.amount)}</span>
-                    <button
-                      onClick={() => setDeleting(expense)}
-                      className="rounded-md p-1.5 text-ink-300 opacity-0 hover:bg-red-50 hover:text-red-500 group-hover:opacity-100"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
@@ -153,6 +161,12 @@ function ExpenseForm({ onSubmit, submitting }: { onSubmit: (p: ExpenseRequest) =
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    const selectedDate = new Date(transactionDate)
+    const currentMonthStart = startOfMonth(new Date())
+    if (isBefore(selectedDate, currentMonthStart)) {
+      toast.error("This month's expenses are closed and locked. You can only manage expenses for the current calendar month.")
+      return
+    }
     onSubmit({
       amount: Number(Number(amount).toFixed(2)),
       type: 'EXPENSE',
@@ -213,3 +227,4 @@ function ExpenseForm({ onSubmit, submitting }: { onSubmit: (p: ExpenseRequest) =
     </form>
   )
 }
+

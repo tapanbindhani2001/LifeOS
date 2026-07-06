@@ -101,6 +101,22 @@ export default function CalculatorPage() {
   }, [expression])
 
   const handleInput = (val: string) => {
+    const symbols = ['+', '-', '×', '÷', '*', '/', '^', '%', '.']
+    if (symbols.includes(val)) {
+      setExpression((prev) => {
+        if (!prev) {
+          if (val === '-') return '-'
+          if (val === '.') return '0.'
+          return ''
+        }
+        const lastChar = prev.slice(-1)
+        if (symbols.includes(lastChar)) {
+          return prev.slice(0, -1) + val
+        }
+        return prev + val
+      })
+      return
+    }
     setExpression((prev) => prev + val)
   }
 
@@ -229,26 +245,26 @@ export default function CalculatorPage() {
             <button onClick={() => handleInput('÷')} className="btn-secondary !bg-brand-50 hover:!bg-brand-100 !text-brand-700 !py-3 font-bold text-lg">÷</button>
 
             {/* Row 2 */}
-            <button onClick={() => handleInput('7')} className="btn-secondary !bg-white !py-3 font-medium text-lg">7</button>
-            <button onClick={() => handleInput('8')} className="btn-secondary !bg-white !py-3 font-medium text-lg">8</button>
-            <button onClick={() => handleInput('9')} className="btn-secondary !bg-white !py-3 font-medium text-lg">9</button>
+            <button onClick={() => handleInput('7')} className="btn-secondary !py-3 font-medium text-lg">7</button>
+            <button onClick={() => handleInput('8')} className="btn-secondary !py-3 font-medium text-lg">8</button>
+            <button onClick={() => handleInput('9')} className="btn-secondary !py-3 font-medium text-lg">9</button>
             <button onClick={() => handleInput('×')} className="btn-secondary !bg-brand-50 hover:!bg-brand-100 !text-brand-700 !py-3 font-bold text-lg">×</button>
 
             {/* Row 3 */}
-            <button onClick={() => handleInput('4')} className="btn-secondary !bg-white !py-3 font-medium text-lg">4</button>
-            <button onClick={() => handleInput('5')} className="btn-secondary !bg-white !py-3 font-medium text-lg">5</button>
-            <button onClick={() => handleInput('6')} className="btn-secondary !bg-white !py-3 font-medium text-lg">6</button>
+            <button onClick={() => handleInput('4')} className="btn-secondary !py-3 font-medium text-lg">4</button>
+            <button onClick={() => handleInput('5')} className="btn-secondary !py-3 font-medium text-lg">5</button>
+            <button onClick={() => handleInput('6')} className="btn-secondary !py-3 font-medium text-lg">6</button>
             <button onClick={() => handleInput('-')} className="btn-secondary !bg-brand-50 hover:!bg-brand-100 !text-brand-700 !py-3 font-bold text-lg">-</button>
 
             {/* Row 4 */}
-            <button onClick={() => handleInput('1')} className="btn-secondary !bg-white !py-3 font-medium text-lg">1</button>
-            <button onClick={() => handleInput('2')} className="btn-secondary !bg-white !py-3 font-medium text-lg">2</button>
-            <button onClick={() => handleInput('3')} className="btn-secondary !bg-white !py-3 font-medium text-lg">3</button>
+            <button onClick={() => handleInput('1')} className="btn-secondary !py-3 font-medium text-lg">1</button>
+            <button onClick={() => handleInput('2')} className="btn-secondary !py-3 font-medium text-lg">2</button>
+            <button onClick={() => handleInput('3')} className="btn-secondary !py-3 font-medium text-lg">3</button>
             <button onClick={() => handleInput('+')} className="btn-secondary !bg-brand-50 hover:!bg-brand-100 !text-brand-700 !py-3 font-bold text-lg">+</button>
 
             {/* Row 5 */}
-            <button onClick={() => handleInput('0')} className="btn-secondary col-span-2 !bg-white !py-3 font-medium text-lg text-left pl-7">0</button>
-            <button onClick={() => handleInput('.')} className="btn-secondary !bg-white !py-3 font-semibold text-lg">.</button>
+            <button onClick={() => handleInput('0')} className="btn-secondary col-span-2 !py-3 font-medium text-lg text-left pl-7">0</button>
+            <button onClick={() => handleInput('.')} className="btn-secondary !py-3 font-semibold text-lg">.</button>
             <button onClick={handleEvaluate} className="btn-primary !py-3 font-bold text-lg">=</button>
           </div>
         </div>

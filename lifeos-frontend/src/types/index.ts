@@ -292,3 +292,21 @@ export interface AdminUserRow {
   subscriptionPlan?: SubscriptionPlan;
   createdAt: string;
 }
+
+export type BudgetStatus = 'ON_TRACK' | 'WARNING' | 'OVER_BUDGET';
+
+export interface Budget {
+  id: string;
+  category: string;
+  monthlyLimit: number;
+  spent: number;
+  percentage: number;
+  status: BudgetStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UpsertBudgetRequest {
+  category: string;
+  monthlyLimit: number;
+}

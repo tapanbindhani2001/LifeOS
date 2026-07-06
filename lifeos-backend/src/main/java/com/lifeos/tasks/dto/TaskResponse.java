@@ -1,6 +1,7 @@
 package com.lifeos.tasks.dto;
 
 import com.lifeos.tasks.Priority;
+import com.lifeos.tasks.TaskStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -22,6 +23,7 @@ public class TaskResponse {
     private String description;
     private boolean completed;
     private Priority priority;
+    private TaskStatus status;
     private String category;
     private Instant dueDate;
     private Instant createdAt;

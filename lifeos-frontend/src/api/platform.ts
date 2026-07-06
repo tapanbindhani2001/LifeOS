@@ -32,7 +32,7 @@ export const subscriptionsApi = {
 
 export const aiApi = {
   listConversations: () => apiGet<Conversation[]>('/ai/conversations'),
-  createConversation: () => apiPost<Conversation>('/ai/conversations'),
+  createConversation: (title?: string) => apiPost<Conversation>('/ai/conversations', { title: title || 'New Chat' }),
   messages: (conversationId: string) => apiGet<ChatMessage[]>(`/ai/conversations/${conversationId}/messages`),
   sendMessage: (conversationId: string, payload: SendMessageRequest) =>
     apiPost<ChatMessage>(`/ai/conversations/${conversationId}/messages`, payload),

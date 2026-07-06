@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Calendar as CalendarIcon,
@@ -14,6 +15,7 @@ import {
   Mic,
   Crown,
   ArrowRight,
+  Send,
 } from 'lucide-react'
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts'
 import { format } from 'date-fns'
@@ -23,7 +25,7 @@ import { Skeleton } from '@/components/ui/Overlay'
 import { useAuth } from '@/context/AuthContext'
 import { useTasks } from '@/hooks/useTasks'
 import { useHabits, useLogHabit } from '@/hooks/useHabits'
-import { useExpenseSummary } from '@/hooks/useExpenses'
+import { useExpenses, useExpenseSummary } from '@/hooks/useExpenses'
 import { useCalendarEvents } from '@/hooks/useNotesCalendar'
 import { categoryColor, formatCurrency, priorityBadgeClass } from '@/lib/format'
 
@@ -33,10 +35,31 @@ export default function DashboardPage() {
   const { data: habits = [], isLoading: habitsLoading } = useHabits()
   const { data: summary, isLoading: summaryLoading } = useExpenseSummary()
   const { data: events = [] } = useCalendarEvents()
+  const { data: recentExpenses = [], isLoading: recentLoading } = useExpenses()
   const logHabit = useLogHabit()
 
+  const [themeMode, setThemeMode] = useState(() => localStorage.getItem('theme') || 'light')
+
+  useEffect(() => {
+    const handleSync = () => {
+      setThemeMode(localStorage.getItem('theme') || 'light')
+    }
+    window.addEventListener('storage', handleSync)
+    return () => window.removeEventListener('storage', handleSync)
+  }, [])
+
   const pendingTasks = tasks.filter((t) => t.status !== 'DONE')
-  const todaysEvents = events.slice(0, 5)
+  const allTodaysEvents = events.filter((e) => {
+    if (!e.startTime) return false
+    const eventDate = new Date(e.startTime)
+    const today = new Date()
+    return (
+      eventDate.getDate() === today.getDate() &&
+      eventDate.getMonth() === today.getMonth() &&
+      eventDate.getFullYear() === today.getFullYear()
+    )
+  })
+  const todaysEvents = allTodaysEvents.slice(0, 5)
   const chartData = summary
     ? Object.entries(summary.categoryDistribution).map(([name, value]) => ({ name, value }))
     : []
@@ -53,8 +76,14 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_340px]">
         {/* Main column */}
         <div className="space-y-6">
-          {/* Quick add */}
-          <div className="flex justify-end">
+          {/* Quick add & Theme indicator */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 rounded-full bg-surface-muted border border-surface-border px-3 py-1 text-xs font-semibold text-ink-700">
+              <span>Theme:</span>
+              <span className="font-bold text-brand-600">
+                {themeMode === 'dark' ? '🌙 Dark Mode' : '☀️ Bright Mode'}
+              </span>
+            </div>
             <Link to="/tasks" className="btn-primary">
               <Plus className="h-4 w-4" />
               Quick Add
@@ -67,7 +96,7 @@ export default function DashboardPage() {
               icon={<CalendarIcon className="h-5 w-5" />}
               iconBg="bg-blue-50 text-blue-500"
               label="Today's Plan"
-              value={String(todaysEvents.length)}
+              value={String(allTodaysEvents.length)}
               caption="Events scheduled"
               to="/calendar"
               linkLabel="View Calendar"
@@ -221,9 +250,22 @@ export default function DashboardPage() {
             </Panel>
 
             <Panel title="Recent Transactions" to="/expenses">
-              <p className="py-10 text-center text-sm text-ink-500">
-                Head to <Link to="/expenses" className="font-medium text-brand-600">Expenses</Link> to see your latest transactions.
-              </p>
+              {recentLoading && <Skeleton className="h-28" />}
+              {!recentLoading && recentExpenses.length === 0 ? (
+                <p className="py-6 text-center text-sm text-ink-500">No transactions yet.</p>
+              ) : (
+                <div className="space-y-3">
+                  {recentExpenses.slice(0, 3).map((exp) => (
+                    <div key={exp.id} className="flex items-center justify-between text-sm">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-semibold text-ink-900">{exp.description}</p>
+                        <p className="text-xs text-ink-500">{exp.category}</p>
+                      </div>
+                      <span className="shrink-0 font-semibold text-red-500 ml-2">-{formatCurrency(exp.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </Panel>
 
             <div className="card flex flex-col justify-between p-5">
@@ -238,11 +280,33 @@ export default function DashboardPage() {
                   Good {greeting().split(' ')[1].toLowerCase()}, {user?.fullName?.split(' ')[0]}! You have{' '}
                   {pendingTasks.length} pending task{pendingTasks.length === 1 ? '' : 's'} today.
                 </div>
+
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault()
+                    const prompt = (e.currentTarget.elements.namedItem('prompt') as HTMLInputElement)?.value
+                    if (prompt?.trim()) {
+                      window.location.href = `/ai-assistant?prompt=${encodeURIComponent(prompt.trim())}`
+                    }
+                  }}
+                  className="mt-4 flex gap-2"
+                >
+                  <input
+                    name="prompt"
+                    type="text"
+                    placeholder="Ask AI Assistant anything..."
+                    className="input !py-2 !text-xs flex-1"
+                    required
+                  />
+                  <button type="submit" className="btn-primary !p-2">
+                    <Send className="h-3.5 w-3.5" />
+                  </button>
+                </form>
               </div>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <Link to="/ai-assistant" className="btn-secondary !text-xs">Plan my day</Link>
-                <Link to="/ai-assistant" className="btn-secondary !text-xs">Expense insights</Link>
-                <Link to="/ai-assistant" className="btn-secondary !text-xs">Summarize notes</Link>
+              <div className="mt-4 flex flex-wrap gap-1.5 pt-3 border-t border-surface-border">
+                <Link to="/ai-assistant?prompt=Plan+my+day" className="btn-secondary !text-[11px] !py-1 px-2.5">Plan my day</Link>
+                <Link to="/ai-assistant?prompt=Explain+my+expenses" className="btn-secondary !text-[11px] !py-1 px-2.5">Expense insights</Link>
+                <Link to="/ai-assistant?prompt=Summarize+my+notes" className="btn-secondary !text-[11px] !py-1 px-2.5">Summarize notes</Link>
               </div>
             </div>
           </div>

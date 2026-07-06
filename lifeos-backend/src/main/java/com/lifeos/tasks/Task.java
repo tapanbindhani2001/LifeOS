@@ -45,9 +45,21 @@ public class Task extends BaseAuditEntity {
     @Column(name = "priority", nullable = false, length = 50)
     private Priority priority;
 
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = true, length = 50)
+    private TaskStatus status = TaskStatus.TODO;
+
     @Column(name = "category", length = 100)
     private String category;
 
     @Column(name = "due_date")
     private Instant dueDate;
+
+    public TaskStatus getStatus() {
+        if (status == null) {
+            return completed ? TaskStatus.DONE : TaskStatus.TODO;
+        }
+        return status;
+    }
 }

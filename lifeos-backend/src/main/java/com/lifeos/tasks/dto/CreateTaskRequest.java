@@ -1,6 +1,7 @@
 package com.lifeos.tasks.dto;
 
 import com.lifeos.tasks.Priority;
+import com.lifeos.tasks.TaskStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
@@ -28,6 +29,8 @@ public class CreateTaskRequest {
 
     @NotNull(message = "Priority is required")
     private Priority priority;
+
+    private TaskStatus status;
 
     private String category;
 

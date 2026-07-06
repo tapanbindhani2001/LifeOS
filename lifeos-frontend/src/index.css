@@ -165,3 +165,96 @@ body {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--color-surface-border); border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--color-ink-300); }
+
+/* ─── Dark Mode Theme ───────────────────────────────────── */
+.dark {
+  --color-brand-50:  #181524;
+  --color-brand-100: #252136;
+  --color-brand-200: #35304a;
+  --color-brand-300: #5b3fd4;
+  --color-brand-400: #6d4df2;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #a78bfa;
+  --color-brand-700: #c4b5fd;
+
+  --color-ink-900: #f8fafc;
+  --color-ink-700: #e2e8f0;
+  --color-ink-500: #94a3b8;
+  --color-ink-300: #475569;
+
+  --color-surface-soft:   #09090b;
+  --color-surface-muted:  #18181b;
+  --color-surface-border: #27272a;
+
+  --bg-card: #0f0f12;
+  --bg-topbar: rgba(15, 15, 18, 0.85);
+  --bg-sidebar: #09090b;
+  --bg-input: #18181b;
+}
+
+.dark body {
+  background: var(--color-surface-soft);
+  color: var(--color-ink-900);
+}
+
+.dark .card {
+  background: var(--bg-card) !important;
+}
+
+.dark .btn-secondary {
+  background-color: var(--color-surface-muted) !important;
+  border-color: var(--color-surface-border) !important;
+  color: var(--color-ink-900) !important;
+}
+
+.dark .bg-white {
+  background-color: var(--bg-card) !important;
+}
+
+.dark .bg-white\/80 {
+  background-color: var(--bg-topbar) !important;
+}
+
+.dark input.input,
+.dark textarea.input {
+  background-color: var(--bg-input) !important;
+  color: var(--color-ink-900) !important;
+  border-color: var(--color-surface-border) !important;
+}
+
+.dark select {
+  background-color: var(--bg-card) !important;
+  color: var(--color-ink-900) !important;
+  border-color: var(--color-surface-border) !important;
+}
+
+.dark div.bg-white {
+  background-color: var(--bg-card) !important;
+}
+
+.dark .hover\:bg-surface-soft:hover {
+  background-color: var(--color-surface-soft) !important;
+}
+
+/* Sidebar override for dark mode */
+.dark aside.bg-white {
+  background-color: var(--bg-sidebar) !important;
+  border-right-color: var(--color-surface-border) !important;
+}
+
+/* Calculator button overrides in dark mode */
+.dark .\!bg-white {
+  background-color: var(--bg-card) !important;
+}
+.dark .\!bg-brand-50 {
+  background-color: var(--color-brand-50) !important;
+}
+.dark .\!bg-red-50 {
+  background-color: #2a1818 !important;
+  color: #f87171 !important;
+}
+.dark .\!bg-brand-50\/50 {
+  background-color: rgba(24, 21, 36, 0.5) !important;
+}
+
+

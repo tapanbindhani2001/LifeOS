@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
-import { Plus, Send, Sparkles, Trash2, MessageSquare } from 'lucide-react'
+import { Plus, Send, Sparkles, Trash2, MessageSquare, Lock, Zap, Crown } from 'lucide-react'
 import { format } from 'date-fns'
 import clsx from 'clsx'
+import { useNavigate } from 'react-router-dom'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { Skeleton } from '@/components/ui/Overlay'
+import { useSubscription } from '@/hooks/useSubscription'
 import {
   useConversations,
   useCreateConversation,
@@ -12,20 +14,98 @@ import {
   useSendMessage,
 } from '@/hooks/usePlatform'
 
+function PremiumGate() {
+  const navigate = useNavigate()
+
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center px-8 py-16">
+      <div className="w-full max-w-md">
+        {/* Glowing icon */}
+        <div className="mb-6 flex justify-center">
+          <div className="relative">
+            <div className="absolute inset-0 rounded-full bg-brand-500 opacity-20 blur-xl" />
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-400 to-brand-600 shadow-lg">
+              <Crown className="h-10 w-10 text-white" />
+            </div>
+          </div>
+        </div>
+
+        {/* Headline */}
+        <h2 className="mb-2 text-center font-display text-2xl font-bold text-ink-900">
+          AI Assistant is Premium
+        </h2>
+        <p className="mb-8 text-center text-sm leading-relaxed text-ink-500">
+          Upgrade to Monthly or Annual plan to unlock your personal AI planner — powered by Groq AI with full context of your tasks, habits, goals, and expenses.
+        </p>
+
+        {/* Feature bullets */}
+        <ul className="mb-8 space-y-3 rounded-2xl bg-surface-soft p-5">
+          {[
+            { icon: '🧠', text: 'Personalized responses based on YOUR data' },
+            { icon: '✅', text: 'Smart task & habit planning suggestions' },
+            { icon: '💰', text: 'Spending analysis & budget coaching' },
+            { icon: '🎯', text: 'Goal milestone tracking support' },
+            { icon: '⚡', text: 'Ultra-fast Groq AI inference' },
+          ].map((f) => (
+            <li key={f.text} className="flex items-center gap-3 text-sm text-ink-700">
+              <span className="text-base">{f.icon}</span>
+              {f.text}
+            </li>
+          ))}
+        </ul>
+
+        {/* CTA */}
+        <button
+          onClick={() => navigate('/subscriptions')}
+          className="btn-primary w-full gap-2 py-3 text-base"
+        >
+          <Zap className="h-5 w-5" />
+          Upgrade to Premium
+        </button>
+        <p className="mt-3 text-center text-xs text-ink-400">
+          Cancel anytime · Instant activation
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export default function AIAssistantPage() {
+  const { data: subscription, isLoading: subLoading } = useSubscription()
   const { data: conversations = [], isLoading: convLoading } = useConversations()
   const createConversation = useCreateConversation()
   const deleteConversation = useDeleteConversation()
   const [activeId, setActiveId] = useState<string | null>(null)
 
+  const isPremium =
+    subscription?.plan !== 'FREE' && subscription?.status === 'ACTIVE'
+
   useEffect(() => {
     if (!activeId && conversations.length > 0) setActiveId(conversations[0].id)
   }, [conversations, activeId])
+
+  useEffect(() => {
+    if (!isPremium) return
+    if (!convLoading && conversations.length === 0 && !createConversation.isPending) {
+      createConversation.mutate(undefined, {
+        onSuccess: (conv) => setActiveId(conv.id),
+      })
+    }
+  }, [conversations, convLoading, isPremium])
 
   const { data: messages = [], isLoading: msgLoading } = useMessages(activeId)
   const sendMessage = useSendMessage(activeId)
   const [draft, setDraft] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const promptParam = params.get('prompt')
+    if (promptParam) {
+      setDraft(promptParam)
+      window.history.replaceState({}, document.title, window.location.pathname)
+    }
+  }, [])
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
@@ -42,6 +122,26 @@ export default function AIAssistantPage() {
     if (!draft.trim() || !activeId) return
     sendMessage.mutate(draft.trim())
     setDraft('')
+  }
+
+  // Show loading skeleton while checking subscription
+  if (subLoading) {
+    return (
+      <AppLayout title="AI Assistant" subtitle="Your personal planner, powered by AI.">
+        <Skeleton className="h-[calc(100vh-160px)]" />
+      </AppLayout>
+    )
+  }
+
+  // Show premium gate for free-tier users
+  if (!isPremium) {
+    return (
+      <AppLayout title="AI Assistant" subtitle="Your personal planner, powered by AI.">
+        <div className="card flex h-[calc(100vh-160px)] overflow-hidden">
+          <PremiumGate />
+        </div>
+      </AppLayout>
+    )
   }
 
   return (
