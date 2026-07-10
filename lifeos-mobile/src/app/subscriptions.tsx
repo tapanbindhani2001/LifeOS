@@ -10,12 +10,12 @@ import Toast from 'react-native-toast-message'
 type Plan = 'FREE' | 'MONTHLY' | 'ANNUAL'
 
 const PLANS: { plan: Plan; name: string; price: string; features: string[] }[] = [
-  { plan: 'FREE', name: 'Free', price: '₹0', features: ['5 GB storage', 'Core modules', 'Community support'] },
+  { plan: 'FREE', name: 'Free', price: '₹0', features: ['1 GB Private Vault storage', 'Core productivity modules', 'Community support'] },
   {
     plan: 'MONTHLY',
     name: 'Monthly',
     price: '₹299/mo',
-    features: ['Unlimited storage', 'AI Assistant', 'Advanced analytics', 'Priority support'],
+    features: ['10 GB Private Vault storage', 'AI Assistant', 'Advanced analytics', 'Priority support'],
   },
   {
     plan: 'ANNUAL',

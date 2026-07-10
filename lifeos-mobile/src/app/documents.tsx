@@ -13,6 +13,7 @@ import Toast from 'react-native-toast-message'
 import { useState, useEffect } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import * as ImagePicker from 'expo-image-picker'
+import * as LocalAuthentication from 'expo-local-authentication'
 import Svg, { Path, Rect, Circle, Line } from 'react-native-svg'
 
 const VAULT_PASSCODE_KEY = 'vault_passcode'
@@ -55,6 +56,8 @@ export default function DocumentsScreen() {
   const [pinInput, setPinInput] = useState('')
   const [tempPin, setTempPin] = useState('')
   const [authToken, setAuthToken] = useState<string | null>(null)
+  const [isBiometricSupported, setIsBiometricSupported] = useState(false)
+  const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(false)
 
   // Filtering State
   const [activeTab, setActiveTab] = useState<TabType>('all')
@@ -117,6 +120,25 @@ export default function DocumentsScreen() {
       subscription.remove()
     }
   }, [])
+
+  // Biometric Enrollment hardware check & auto-trigger
+  useEffect(() => {
+    async function checkBiometrics() {
+      const compatible = await LocalAuthentication.hasHardwareAsync()
+      setIsBiometricSupported(compatible)
+      if (compatible) {
+        const enrolled = await LocalAuthentication.isEnrolledAsync()
+        setIsBiometricEnrolled(enrolled)
+        if (enrolled && !isUnlocked && hasPasscode && passcodeMode === 'enter') {
+          // Auto trigger biometric scan overlay immediately
+          triggerBiometricUnlock()
+        }
+      }
+    }
+    if (hasPasscode && !isUnlocked) {
+      checkBiometrics()
+    }
+  }, [hasPasscode, isUnlocked, passcodeMode])
 
   // Delete Document
   const deleteDoc = useMutation({
@@ -193,6 +215,33 @@ export default function DocumentsScreen() {
   const lockVault = () => {
     setIsUnlocked(false)
     setPinInput('')
+  }
+
+  const triggerBiometricUnlock = async () => {
+    try {
+      const enrolled = await LocalAuthentication.isEnrolledAsync()
+      if (!enrolled) {
+        Alert.alert(
+          'Biometrics Not Setup',
+          'Touch ID / Face ID is not enrolled on this device.\n\n• On Phone: Enable lock screen fingerprint/face scan in your system Settings.\n• On iOS Simulator: Choose "Features > Face ID > Enrolled" from the Mac Simulator menu.',
+          [{ text: 'OK' }]
+        )
+        return
+      }
+
+      const result = await LocalAuthentication.authenticateAsync({
+        promptMessage: 'Unlock Private Vault',
+        fallbackLabel: 'Enter PIN Code',
+      })
+      
+      if (result.success) {
+        setIsUnlocked(true)
+        setPinInput('')
+        Toast.show({ type: 'success', text1: 'Vault unlocked with biometrics!' })
+      }
+    } catch (error: any) {
+      Alert.alert('Biometric Error', error.message || 'Could not complete biometric scan.')
+    }
   }
 
   // Direct Upload Actions (No Naming Modal)
@@ -333,6 +382,12 @@ export default function DocumentsScreen() {
             ))}
           </View>
 
+          {passcodeMode === 'enter' && isBiometricSupported && (
+            <TouchableOpacity onPress={triggerBiometricUnlock} style={styles.biometricPromptLink}>
+              <Text style={styles.biometricPromptLinkText}>Touch / Face ID to Unlock</Text>
+            </TouchableOpacity>
+          )}
+
           {/* Numeric Keypad */}
           <View style={styles.keypadGrid}>
             {[['1', '2', '3'], ['4', '5', '6'], ['7', '8', '9']].map((row, rIdx) => (
@@ -349,9 +404,21 @@ export default function DocumentsScreen() {
               </View>
             ))}
             <View style={styles.keypadRow}>
-              <TouchableOpacity style={[styles.keypadBtn, styles.keypadUtilityBtn]} onPress={() => setPinInput('')}>
-                <Text style={styles.keypadUtilityText}>Reset</Text>
-              </TouchableOpacity>
+              {passcodeMode === 'enter' && isBiometricSupported ? (
+                <TouchableOpacity style={[styles.keypadBtn, styles.keypadUtilityBtn]} onPress={triggerBiometricUnlock}>
+                  <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.brand[500]} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                    <Path d="M12 22a10 10 0 0 0 8-16.73M22 12a10 10 0 0 0-19-4.32" />
+                    <Path d="M14 14.25a3 3 0 0 0-4 0" />
+                    <Path d="M16 11.5a6 6 0 0 0-8 0" />
+                    <Path d="M18 8.75a9 9 0 0 0-12 0" />
+                    <Path d="M20 6a12 12 0 0 0-16 0" />
+                  </Svg>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity style={[styles.keypadBtn, styles.keypadUtilityBtn]} onPress={() => setPinInput('')}>
+                  <Text style={styles.keypadUtilityText}>Reset</Text>
+                </TouchableOpacity>
+              )}
               <TouchableOpacity style={styles.keypadBtn} onPress={() => handleKeyPress('0')}>
                 <Text style={styles.keypadBtnText}>0</Text>
               </TouchableOpacity>
@@ -973,6 +1040,18 @@ const useStyles = makeStyles((colors) => StyleSheet.create({
   pinDotFilled: {
     backgroundColor: colors.brand[500],
     borderColor: colors.brand[500],
+  },
+  biometricPromptLink: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.lg,
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+  },
+  biometricPromptLinkText: {
+    fontSize: FontSize.sm,
+    fontWeight: '700',
+    color: colors.brand[500],
   },
   keypadGrid: {
     width: '100%',

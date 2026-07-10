@@ -134,6 +134,7 @@ public class AuthService {
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .role(user.getRole())
+                .profilePicture(user.getProfilePicture())
                 .build();
     }
 

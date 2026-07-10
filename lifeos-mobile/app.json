@@ -8,7 +8,10 @@
     "scheme": "lifeosmobile",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "LifeOS needs Face ID permission to unlock your Private Vault securely."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -20,7 +23,8 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.anonymous.lifeosmobile",
       "permissions": [
-        "android.permission.READ_SMS"
+        "android.permission.READ_SMS",
+        "android.permission.USE_BIOMETRIC"
       ]
     },
     "web": {
