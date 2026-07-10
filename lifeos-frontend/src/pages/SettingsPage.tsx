@@ -3,19 +3,12 @@ import toast from 'react-hot-toast'
 import { Loader2 } from 'lucide-react'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { useAuth } from '@/context/AuthContext'
-import { authApi } from '@/api/auth'
-import { ApiError } from '@/api/client'
-import { Modal } from '@/components/ui/Overlay'
 
 export default function SettingsPage() {
   const { user, logout } = useAuth()
   const [theme, setTheme] = useState(() => localStorage.getItem('theme') || 'light')
 
-  // Change Password Modal States
-  const [passwordOpen, setPasswordOpen] = useState(false)
-  const [newPassword, setNewPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [savingPassword, setSavingPassword] = useState(false)
+
 
   // App Updates State
   const [checkingUpdates, setCheckingUpdates] = useState(false)
@@ -40,33 +33,7 @@ export default function SettingsPage() {
     window.dispatchEvent(new Event('storage'))
   }
 
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newPassword.trim()) {
-      toast.error('Password cannot be empty')
-      return
-    }
-    if (newPassword !== confirmPassword) {
-      toast.error('Passwords do not match')
-      return
-    }
-    setSavingPassword(true)
-    try {
-      await authApi.updateProfile({
-        fullName: user?.fullName || '',
-        email: user?.email,
-        password: newPassword
-      })
-      toast.success('Password updated successfully')
-      setPasswordOpen(false)
-      setNewPassword('')
-      setConfirmPassword('')
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Could not change password')
-    } finally {
-      setSavingPassword(false)
-    }
-  }
+
 
   const handleCheckUpdates = () => {
     setCheckingUpdates(true)
@@ -96,14 +63,18 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Security Card */}
-        <div className="card p-6">
-          <h3 className="font-display text-base font-bold text-ink-900">Security</h3>
-          <p className="mt-1 text-sm text-ink-500">Update your account password securely.</p>
-          <button onClick={() => setPasswordOpen(true)} className="btn-secondary mt-4">
-            Change Password
-          </button>
+        {/* Account Info Card */}
+        <div className="card space-y-4 p-6">
+          <h3 className="font-display text-base font-bold text-ink-900">Account Info</h3>
+          <div>
+            <span className="text-xs font-semibold text-ink-500 block mb-1">Role</span>
+            <div className="bg-surface-soft border border-surface-border text-ink-900 rounded-lg px-3.5 py-2.5 text-sm uppercase font-semibold tracking-wider text-brand-600">
+              {user?.role?.replace('ROLE_', '') ?? 'USER'}
+            </div>
+          </div>
         </div>
+
+
 
         {/* Display Preferences */}
         <div className="card p-6">
@@ -149,38 +120,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Change Password Modal */}
-      <Modal open={passwordOpen} onClose={() => setPasswordOpen(false)} title="Change Password" width="max-w-md">
-        <form onSubmit={handleChangePassword} className="space-y-4">
-          <div>
-            <label className="label">New password</label>
-            <input
-              type="password"
-              className="input"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              required
-              autoFocus
-              placeholder="Enter new password"
-            />
-          </div>
-          <div>
-            <label className="label">Confirm new password</label>
-            <input
-              type="password"
-              className="input"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              placeholder="Confirm new password"
-            />
-          </div>
-          <button type="submit" disabled={savingPassword} className="btn-primary w-full">
-            {savingPassword && <Loader2 className="h-4 w-4 animate-spin" />}
-            Update Password
-          </button>
-        </form>
-      </Modal>
+
     </AppLayout>
   )
 }

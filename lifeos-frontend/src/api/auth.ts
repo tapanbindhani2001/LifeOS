@@ -6,4 +6,6 @@ export const authApi = {
   register: (payload: RegisterRequest) => apiPost<LoginResponse>('/auth/register', payload),
   me: () => apiGet<User>('/users/me'),
   updateProfile: (payload: UpdateProfileRequest) => apiPut<User>('/users/me', payload),
+  forgotPassword: (email: string) => apiPost<{ message: string; resetCode?: string }>('/auth/forgot-password', { email }),
+  resetPassword: (payload: any) => apiPost<void>('/auth/reset-password', payload),
 }

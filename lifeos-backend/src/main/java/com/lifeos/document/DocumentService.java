@@ -3,6 +3,10 @@ package com.lifeos.document;
 import com.lifeos.common.exception.BadRequestException;
 import com.lifeos.common.exception.ResourceNotFoundException;
 import com.lifeos.document.dto.DocumentResponse;
+import com.lifeos.document.dto.StorageSummaryResponse;
+import com.lifeos.subscription.Subscription;
+import com.lifeos.subscription.SubscriptionPlan;
+import com.lifeos.subscription.SubscriptionRepository;
 import com.lifeos.user.User;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,19 +30,23 @@ import java.util.stream.Collectors;
 public class DocumentService {
 
     private final DocumentRepository documentRepository;
+    private final SubscriptionRepository subscriptionRepository;
     private final Path rootLocation;
 
     /**
      * Constructs a DocumentService.
      *
      * @param documentRepository repository handling database documents metadata
+     * @param subscriptionRepository repository handling subscriptions metadata
      * @param uploadDir          directory path configured for file uploads
      */
     public DocumentService(
             DocumentRepository documentRepository,
+            SubscriptionRepository subscriptionRepository,
             @Value("${storage.upload-dir}") String uploadDir
     ) {
         this.documentRepository = documentRepository;
+        this.subscriptionRepository = subscriptionRepository;
         this.rootLocation = Paths.get(uploadDir);
     }
 
@@ -108,6 +116,12 @@ public class DocumentService {
             throw new BadRequestException("Failed to store empty file");
         }
 
+        // Validate storage limits before saving
+        StorageSummaryResponse storage = getStorageSummary(user);
+        if (storage.getUsedBytes() + file.getSize() > storage.getLimitBytes()) {
+            throw new BadRequestException("Storage limit exceeded. To get more storage access, please upgrade to Premium!");
+        }
+
         String originalFilename = file.getOriginalFilename();
         if (originalFilename == null) {
             originalFilename = "unnamed";
@@ -135,6 +149,36 @@ public class DocumentService {
         doc.setStoragePath(destinationFile.toAbsolutePath().toString());
         Document savedDoc = documentRepository.save(doc);
         return mapToResponse(savedDoc);
+    }
+
+    /**
+     * Calculates the user's storage consumption and matches it against their subscription limit.
+     *
+     * @param user current User
+     * @return StorageSummaryResponse containing current used bytes and total allowed bytes
+     */
+    @Transactional(readOnly = true)
+    public StorageSummaryResponse getStorageSummary(User user) {
+        long usedBytes = documentRepository.findAllByUserIdOrderByCreatedAtDesc(user.getId())
+                .stream()
+                .mapToLong(Document::getFileSize)
+                .sum();
+
+        SubscriptionPlan plan = subscriptionRepository.findByUserId(user.getId())
+                .map(Subscription::getPlan)
+                .orElse(SubscriptionPlan.FREE);
+
+        boolean isPremium = plan == SubscriptionPlan.MONTHLY || plan == SubscriptionPlan.ANNUAL;
+        
+        // 1 GB for Free, 10 GB for Premium
+        long limitBytes = isPremium ? 10L * 1024 * 1024 * 1024 : 1L * 1024 * 1024 * 1024;
+
+        return StorageSummaryResponse.builder()
+                .usedBytes(usedBytes)
+                .limitBytes(limitBytes)
+                .planName(plan.name())
+                .isPremium(isPremium)
+                .build();
     }
 
     /**

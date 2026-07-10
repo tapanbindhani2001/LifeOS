@@ -6,12 +6,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { notesApi } from '../api/features'
-import { Colors, Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
+import { Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
+import { useTheme, makeStyles } from '../context/ThemeContext'
 import Toast from 'react-native-toast-message'
 import { router } from 'expo-router'
 
 export default function NotesScreen() {
   const qc = useQueryClient()
+  const { colors } = useTheme()
+  const styles = useStyles()
   const { data: notes = [], isLoading } = useQuery({ queryKey: ['notes'], queryFn: notesApi.list })
 
   const createNote = useMutation({
@@ -147,13 +150,13 @@ export default function NotesScreen() {
           placeholder="Search notes..."
           value={search}
           onChangeText={setSearch}
-          placeholderTextColor={Colors.ink[400]}
+          placeholderTextColor={colors.ink[400]}
         />
       </View>
 
       {/* List */}
       {isLoading ? (
-        <ActivityIndicator color={Colors.brand[500]} style={{ marginTop: 40 }} />
+        <ActivityIndicator color={colors.brand[500]} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
           data={filtered}
@@ -168,12 +171,12 @@ export default function NotesScreen() {
               {item.content ? (
                 <Text style={styles.noteContent} numberOfLines={3}>{item.content}</Text>
               ) : (
-                <Text style={[styles.noteContent, { color: Colors.ink[400] }]}>No additional text</Text>
+                <Text style={[styles.noteContent, { color: colors.ink[400] }]}>No additional text</Text>
               )}
               <View style={styles.cardFooter}>
                 <Text style={styles.noteDate}>{formatNoteDate(item.updatedAt)}</Text>
                 <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.trashBtn}>
-                  <Text style={{ fontSize: FontSize.xs }}>🗑️</Text>
+                  <Text style={styles.trashText}>🗑️</Text>
                 </TouchableOpacity>
               </View>
             </TouchableOpacity>
@@ -218,7 +221,7 @@ export default function NotesScreen() {
               placeholder="Title..."
               value={title}
               onChangeText={setTitle}
-              placeholderTextColor={Colors.ink[400]}
+              placeholderTextColor={colors.ink[400]}
             />
 
             <Text style={styles.label}>Content</Text>
@@ -228,7 +231,7 @@ export default function NotesScreen() {
               multiline
               value={content}
               onChangeText={setContent}
-              placeholderTextColor={Colors.ink[400]}
+              placeholderTextColor={colors.ink[400]}
             />
 
             <TouchableOpacity style={styles.submitBtn} onPress={handleSave} disabled={createNote.isPending || updateNote.isPending}>
@@ -245,8 +248,8 @@ export default function NotesScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.surface.soft },
+const useStyles = makeStyles((colors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.surface.soft },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -255,11 +258,11 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  backArrow: { fontSize: 22, color: Colors.ink[900], paddingRight: 4 },
-  title: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.ink[900] },
-  subtitle: { fontSize: FontSize.xs, color: Colors.ink[400], marginTop: 2 },
+  backArrow: { fontSize: 22, color: colors.ink[900], paddingRight: 4 },
+  title: { fontSize: FontSize.xl, fontWeight: '800', color: colors.ink[900] },
+  subtitle: { fontSize: FontSize.xs, color: colors.ink[400], marginTop: 2 },
   addBtn: {
-    backgroundColor: Colors.brand[500],
+    backgroundColor: colors.brand[500],
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
@@ -270,30 +273,30 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   searchInput: {
-    backgroundColor: Colors.surface.white,
+    backgroundColor: colors.surface.white,
     borderWidth: 1.5,
-    borderColor: Colors.ink[200],
+    borderColor: colors.surface.border,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 10,
     fontSize: FontSize.sm,
-    color: Colors.ink[900],
+    color: colors.ink[900],
   },
   listContainer: {
     padding: Spacing.lg,
     paddingTop: 0,
   },
   noteCard: {
-    backgroundColor: Colors.surface.white,
+    backgroundColor: colors.surface.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
     borderWidth: 1,
-    borderColor: Colors.surface.border,
+    borderColor: colors.surface.border,
     ...Shadow.sm,
   },
   pinnedCard: {
-    borderColor: Colors.brand[300],
+    borderColor: colors.brand[300],
   },
   cardHeader: {
     flexDirection: 'row',
@@ -304,7 +307,7 @@ const styles = StyleSheet.create({
   noteTitle: {
     fontSize: FontSize.md,
     fontWeight: '700',
-    color: Colors.ink[900],
+    color: colors.ink[900],
     flex: 1,
   },
   pinIcon: {
@@ -313,7 +316,7 @@ const styles = StyleSheet.create({
   },
   noteContent: {
     fontSize: FontSize.sm,
-    color: Colors.ink[500],
+    color: colors.ink[500],
     lineHeight: 18,
     marginBottom: Spacing.sm,
   },
@@ -322,26 +325,30 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: Colors.surface.border + '60',
+    borderTopColor: colors.surface.border,
     paddingTop: 8,
   },
   noteDate: {
     fontSize: 10,
-    color: Colors.ink[300],
+    color: colors.ink[300],
   },
   trashBtn: {
     padding: 4,
   },
+  trashText: {
+    fontSize: FontSize.sm,
+    color: colors.status.error,
+  },
   empty: {
     textAlign: 'center',
-    color: Colors.ink[400],
+    color: colors.ink[400],
     marginTop: 60,
     fontSize: FontSize.sm,
   },
   modal: {
     flex: 1,
     padding: Spacing.xl,
-    backgroundColor: Colors.surface.soft,
+    backgroundColor: colors.surface.soft,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -351,31 +358,31 @@ const styles = StyleSheet.create({
   },
   modalCloseText: {
     fontSize: 18,
-    color: Colors.ink[500],
+    color: colors.ink[500],
     fontWeight: '700',
     marginRight: 6,
   },
   modalTitle: {
     fontSize: FontSize.lg,
     fontWeight: '800',
-    color: Colors.ink[900],
+    color: colors.ink[900],
   },
   modalActionBtn: {
-    backgroundColor: Colors.surface.white,
+    backgroundColor: colors.surface.white,
     borderWidth: 1,
-    borderColor: Colors.ink[200],
+    borderColor: colors.surface.border,
     borderRadius: BorderRadius.sm,
     paddingHorizontal: 10,
     paddingVertical: 5,
   },
   modalActionBtnActive: {
-    borderColor: Colors.brand[200],
-    backgroundColor: Colors.brand[50],
+    borderColor: colors.brand[200],
+    backgroundColor: colors.brand[50],
   },
   modalActionBtnText: {
     fontSize: 11,
     fontWeight: '700',
-    color: Colors.ink[700],
+    color: colors.ink[700],
   },
   modalTrashBtn: {
     padding: 6,
@@ -383,23 +390,23 @@ const styles = StyleSheet.create({
   label: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.ink[700],
+    color: colors.ink[700],
     marginBottom: 6,
     marginTop: Spacing.sm,
   },
   input: {
     borderWidth: 1.5,
-    borderColor: Colors.ink[200],
+    borderColor: colors.surface.border,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 12,
     fontSize: FontSize.md,
-    color: Colors.ink[900],
-    backgroundColor: Colors.surface.white,
+    color: colors.ink[900],
+    backgroundColor: colors.surface.white,
     marginBottom: Spacing.sm,
   },
   submitBtn: {
-    backgroundColor: Colors.brand[500],
+    backgroundColor: colors.brand[500],
     borderRadius: BorderRadius.md,
     paddingVertical: 14,
     alignItems: 'center',
@@ -410,4 +417,4 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: FontSize.md,
   },
-})
+}))

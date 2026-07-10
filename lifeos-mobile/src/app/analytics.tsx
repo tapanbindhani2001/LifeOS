@@ -1,11 +1,13 @@
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Colors, Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
+import { Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
+import { useTheme, makeStyles } from '../context/ThemeContext'
 import { router } from 'expo-router'
 import { useQuery } from '@tanstack/react-query'
 import { tasksApi, habitsApi, expensesApi, goalsApi } from '../api/features'
 
 function MetricCard({ label, value, sub, color }: { label: string; value: string; sub?: string; color?: string }) {
+  const styles = useStyles()
   return (
     <View style={[styles.metricCard, color ? { borderLeftWidth: 4, borderLeftColor: color } : {}]}>
       <Text style={styles.metricLabel}>{label}</Text>
@@ -16,6 +18,8 @@ function MetricCard({ label, value, sub, color }: { label: string; value: string
 }
 
 export default function AnalyticsScreen() {
+  const { colors } = useTheme()
+  const styles = useStyles()
   const { data: tasks = [], isLoading: tLoading } = useQuery({ queryKey: ['tasks'], queryFn: tasksApi.list })
   const { data: habits = [], isLoading: hLoading } = useQuery({ queryKey: ['habits'], queryFn: habitsApi.list })
   const { data: summary, isLoading: eLoading } = useQuery({ queryKey: ['expense-summary'], queryFn: expensesApi.summary })
@@ -52,7 +56,7 @@ export default function AnalyticsScreen() {
       </View>
 
       {loading ? (
-        <ActivityIndicator color={Colors.brand[500]} style={{ marginTop: 60 }} />
+        <ActivityIndicator color={colors.brand[500]} style={{ marginTop: 60 }} />
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           <Text style={styles.sectionTitle}>📝 Tasks</Text>
@@ -60,7 +64,7 @@ export default function AnalyticsScreen() {
             label="Completion Rate"
             value={`${completionRate}%`}
             sub={`${doneTasks} of ${totalTasks} tasks completed`}
-            color={Colors.brand[500]}
+            color={colors.brand[500]}
           />
 
           <Text style={styles.sectionTitle}>🔥 Habits</Text>
@@ -68,7 +72,7 @@ export default function AnalyticsScreen() {
             label="Best Streak"
             value={`${bestStreak} days`}
             sub={`${habitsLoggedToday}/${(habits as any[]).length} habits logged today`}
-            color={Colors.status.warning}
+            color={colors.status.warning}
           />
 
           <Text style={styles.sectionTitle}>🎯 Goals</Text>
@@ -84,7 +88,7 @@ export default function AnalyticsScreen() {
             label="Total Spent"
             value={`₹${totalSpent.toLocaleString()}`}
             sub={`Income: ₹${totalIncome.toLocaleString()} | Net: ₹${netBalance.toLocaleString()}`}
-            color={Colors.status.error}
+            color={colors.status.error}
           />
 
           {/* Category Breakdown */}
@@ -107,26 +111,26 @@ export default function AnalyticsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.surface.soft },
+const useStyles = makeStyles((colors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.surface.soft },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.lg, paddingBottom: Spacing.md },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  backArrow: { fontSize: 22, color: Colors.ink[900], paddingRight: 4 },
-  title: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.ink[900] },
+  backArrow: { fontSize: 22, color: colors.ink[900], paddingRight: 4 },
+  title: { fontSize: FontSize.xl, fontWeight: '800', color: colors.ink[900] },
   content: { padding: Spacing.lg, paddingBottom: 40 },
-  sectionTitle: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.ink[500], marginBottom: Spacing.sm, marginTop: Spacing.sm },
+  sectionTitle: { fontSize: FontSize.sm, fontWeight: '700', color: colors.ink[500], marginBottom: Spacing.sm, marginTop: Spacing.sm },
   metricCard: {
-    backgroundColor: Colors.surface.white,
+    backgroundColor: colors.surface.white,
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
     ...Shadow.sm,
     marginBottom: Spacing.md,
   },
-  metricLabel: { fontSize: FontSize.sm, color: Colors.ink[500], fontWeight: '600' },
-  metricValue: { fontSize: 32, fontWeight: '800', color: Colors.ink[900], marginTop: 4 },
-  metricSub: { fontSize: FontSize.xs, color: Colors.ink[400], fontWeight: '600', marginTop: 4 },
-  catCard: { backgroundColor: Colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.md, ...Shadow.sm, marginBottom: Spacing.md },
-  catRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.surface.border },
-  catLabel: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.ink[700] },
-  catAmount: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.ink[900] },
-})
+  metricLabel: { fontSize: FontSize.sm, color: colors.ink[500], fontWeight: '600' },
+  metricValue: { fontSize: 32, fontWeight: '800', color: colors.ink[900], marginTop: 4 },
+  metricSub: { fontSize: FontSize.xs, color: colors.ink[400], fontWeight: '600', marginTop: 4 },
+  catCard: { backgroundColor: colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.md, ...Shadow.sm, marginBottom: Spacing.md },
+  catRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.surface.border },
+  catLabel: { fontSize: FontSize.sm, fontWeight: '600', color: colors.ink[700] },
+  catAmount: { fontSize: FontSize.sm, fontWeight: '700', color: colors.ink[900] },
+}))

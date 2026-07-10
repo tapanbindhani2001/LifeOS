@@ -9,7 +9,8 @@ import Svg, { G, Circle } from 'react-native-svg'
 import DateTimePicker from '@react-native-community/datetimepicker'
 import * as Clipboard from 'expo-clipboard'
 import { expensesApi } from '../../api/features'
-import { Colors, Spacing, BorderRadius, FontSize, Shadow } from '../../constants/theme'
+import { Spacing, BorderRadius, FontSize, Shadow } from '../../constants/theme'
+import { useTheme, makeStyles } from '../../context/ThemeContext'
 import Toast from 'react-native-toast-message'
 import { parseBankSms } from '../../utils/smsParser'
 
@@ -36,6 +37,9 @@ import SmsAndroid from 'react-native-get-sms-android'
 
 export default function ExpensesScreen() {
   const qc = useQueryClient()
+  const { colors, theme } = useTheme()
+  const styles = useStyles()
+
   const { data: expenses = [], isLoading: listLoading } = useQuery({ queryKey: ['expenses'], queryFn: expensesApi.list })
   const { data: summary, isLoading: summaryLoading } = useQuery({ queryKey: ['expenses', 'summary'], queryFn: expensesApi.summary })
 
@@ -95,6 +99,10 @@ export default function ExpensesScreen() {
             minDate: Date.now() - 24 * 60 * 60 * 1000, // last 24 hours
             maxCount: 20,
           };
+          if (!SmsAndroid || typeof SmsAndroid.list !== 'function') {
+            console.warn('SmsAndroid native module is not available in this environment (e.g., Expo Go).');
+            return;
+          }
           SmsAndroid.list(
             JSON.stringify(filter),
             (fail: string) => {
@@ -142,7 +150,10 @@ export default function ExpensesScreen() {
     if (modalOpen) {
       checkClipboard()
     } else {
-      setClipboardBanner(null)
+      const timer = setTimeout(() => {
+        setClipboardBanner(null)
+      }, 0)
+      return () => clearTimeout(timer)
     }
   }, [modalOpen])
 
@@ -255,7 +266,6 @@ export default function ExpensesScreen() {
   }
 
   const totalSpent = summary?.totalExpense ?? 0
-  const totalIncome = summary?.totalIncome ?? 0
 
   const chartData = summary?.categoryDistribution
     ? Object.entries(summary.categoryDistribution)
@@ -287,7 +297,7 @@ export default function ExpensesScreen() {
       </View>
 
       {listLoading ? (
-        <ActivityIndicator color={Colors.brand[500]} style={{ flex: 1 }} />
+        <ActivityIndicator color={colors.brand[500]} style={{ flex: 1 }} />
       ) : (
         <FlatList
           data={expenses}
@@ -330,7 +340,7 @@ export default function ExpensesScreen() {
                     <View style={styles.svgWrapper}>
                       <Svg width="120" height="120" viewBox="0 0 120 120">
                         <G transform="rotate(-90 60 60)">
-                          {formattedChartData.map((slice, index) => {
+                          {formattedChartData.map((slice) => {
                             const radius = 45
                             const strokeWidth = 14
                             const circumference = 2 * Math.PI * radius
@@ -388,7 +398,7 @@ export default function ExpensesScreen() {
             const isLocked = selectedDate < currentMonthStart
 
             return (
-              <View style={[styles.expenseCard, isLocked && { borderColor: Colors.surface.border, borderWidth: 1 }]}>
+              <View style={[styles.expenseCard, isLocked && { borderColor: colors.surface.border, borderWidth: 1 }]}>
                 <View style={styles.expenseLeft}>
                   <View style={[styles.expenseIcon, { backgroundColor: (CATEGORY_COLORS[item.category] || '#6B7280') + '20' }]}>
                     <Text style={{ fontSize: 16, color: CATEGORY_COLORS[item.category] || '#6B7280' }}>💸</Text>
@@ -402,10 +412,10 @@ export default function ExpensesScreen() {
                   <Text style={styles.expenseAmount}>₹{Number(item.amount).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</Text>
                   {!isLocked ? (
                     <TouchableOpacity onPress={() => handleDelete(item)}>
-                      <Text style={{ fontSize: 13, color: Colors.status.error, marginTop: 4, fontWeight: '600' }}>Delete</Text>
+                      <Text style={{ fontSize: 13, color: colors.status.error, marginTop: 4, fontWeight: '600' }}>Delete</Text>
                     </TouchableOpacity>
                   ) : (
-                    <Text style={{ fontSize: 10, color: Colors.ink[300], marginTop: 4, fontWeight: '600' }}>🔒 Locked</Text>
+                    <Text style={{ fontSize: 10, color: colors.ink[300], marginTop: 4, fontWeight: '600' }}>🔒 Locked</Text>
                   )}
                 </View>
               </View>
@@ -452,7 +462,7 @@ export default function ExpensesScreen() {
                       multiline
                       numberOfLines={2}
                       placeholder="e.g. Your Account XX12 was debited by Rs. 550.00 at Swiggy..."
-                      placeholderTextColor={Colors.ink[300]}
+                      placeholderTextColor={colors.ink[300]}
                       value={smsText}
                       onChangeText={setSmsText}
                     />
@@ -470,7 +480,14 @@ export default function ExpensesScreen() {
             )}
 
             <Text style={styles.label}>Amount (₹) *</Text>
-            <TextInput style={styles.input} placeholder="0.00" keyboardType="decimal-pad" value={amount} onChangeText={setAmount} />
+            <TextInput
+              style={styles.input}
+              placeholder="0.00"
+              placeholderTextColor={colors.ink[400]}
+              keyboardType="decimal-pad"
+              value={amount}
+              onChangeText={setAmount}
+            />
 
             <Text style={styles.label}>Date</Text>
             {Platform.OS === 'web' ? (
@@ -503,15 +520,15 @@ export default function ExpensesScreen() {
                   style={{
                     borderWidth: 1.5,
                     borderStyle: 'solid',
-                    borderColor: Colors.ink[200],
+                    borderColor: colors.surface.border,
                     borderRadius: BorderRadius.md,
                     paddingLeft: Spacing.md,
                     paddingRight: 40,
                     paddingTop: 12,
                     paddingBottom: 12,
                     fontSize: FontSize.md,
-                    color: Colors.ink[900],
-                    backgroundColor: Colors.surface.white,
+                    color: colors.ink[900],
+                    backgroundColor: colors.surface.white,
                     marginBottom: Spacing.sm,
                     width: '100%',
                     boxSizing: 'border-box',
@@ -555,7 +572,13 @@ export default function ExpensesScreen() {
             </View>
 
             <Text style={styles.label}>Description (Optional)</Text>
-            <TextInput style={styles.input} placeholder="e.g., Lunch at cafe" value={title} onChangeText={setTitle} />
+            <TextInput
+              style={styles.input}
+              placeholder="e.g., Lunch at cafe"
+              placeholderTextColor={colors.ink[400]}
+              value={title}
+              onChangeText={setTitle}
+            />
 
             <TouchableOpacity style={styles.submitBtn} onPress={handleCreate} disabled={createExpense.isPending}>
               {createExpense.isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitText}>Add Expense</Text>}
@@ -567,78 +590,78 @@ export default function ExpensesScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.surface.soft },
+const useStyles = makeStyles((colors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.surface.soft },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.lg, paddingBottom: Spacing.md },
-  title: { fontSize: FontSize.xxl, fontWeight: '800', color: Colors.ink[900] },
-  subtitle: { fontSize: FontSize.sm, color: Colors.ink[500] },
-  addBtn: { backgroundColor: Colors.brand[500], borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: 8 },
+  title: { fontSize: FontSize.xxl, fontWeight: '800', color: colors.ink[900] },
+  subtitle: { fontSize: FontSize.sm, color: colors.ink[500] },
+  addBtn: { backgroundColor: colors.brand[500], borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: 8 },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSize.sm },
-  totalBanner: { backgroundColor: Colors.brand[500], borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md },
-  totalLabel: { color: Colors.brand[100], fontSize: FontSize.sm, fontWeight: '600' },
+  totalBanner: { backgroundColor: colors.brand[500], borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md },
+  totalLabel: { color: colors.brand[100], fontSize: FontSize.sm, fontWeight: '600' },
   totalAmount: { color: '#fff', fontSize: FontSize.xxxl, fontWeight: '800', marginTop: 4 },
-  breakdownCard: { backgroundColor: Colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadow.sm },
-  breakdownTitle: { fontSize: FontSize.md, fontWeight: '800', color: Colors.ink[900], marginBottom: Spacing.sm },
+  breakdownCard: { backgroundColor: colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.lg, marginBottom: Spacing.md, ...Shadow.sm },
+  breakdownTitle: { fontSize: FontSize.md, fontWeight: '800', color: colors.ink[900], marginBottom: Spacing.sm },
   chartContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: Spacing.xs },
   svgWrapper: { position: 'relative', width: 120, height: 120, alignItems: 'center', justifyContent: 'center' },
   centerTextContainer: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, justifyContent: 'center', alignItems: 'center' },
-  centerTextLabel: { fontSize: 9, color: Colors.ink[400], textTransform: 'uppercase', fontWeight: '700' },
-  centerTextValue: { fontSize: FontSize.sm, color: Colors.ink[900], fontWeight: '800', marginTop: 1 },
+  centerTextLabel: { fontSize: 9, color: colors.ink[400], textTransform: 'uppercase', fontWeight: '700' },
+  centerTextValue: { fontSize: FontSize.sm, color: colors.ink[900], fontWeight: '800', marginTop: 1 },
   legendContainer: { flex: 1, gap: 8, paddingLeft: Spacing.md },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
   colorDot: { width: 8, height: 8, borderRadius: BorderRadius.full },
-  legendText: { fontSize: FontSize.xs, color: Colors.ink[700], fontWeight: '600', flexShrink: 1 },
-  sectionTitle: { fontSize: FontSize.md, fontWeight: '800', color: Colors.ink[900], marginBottom: Spacing.sm, marginTop: Spacing.xs },
-  expenseCard: { backgroundColor: Colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', ...Shadow.sm },
+  legendText: { fontSize: FontSize.xs, color: colors.ink[700], fontWeight: '600', flexShrink: 1 },
+  sectionTitle: { fontSize: FontSize.md, fontWeight: '800', color: colors.ink[900], marginBottom: Spacing.sm, marginTop: Spacing.xs },
+  expenseCard: { backgroundColor: colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.sm, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', ...Shadow.sm },
   expenseLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm, flex: 1 },
   expenseIcon: { width: 40, height: 40, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
-  expenseTitle: { fontSize: FontSize.md, fontWeight: '600', color: Colors.ink[900] },
-  expenseMeta: { fontSize: FontSize.xs, color: Colors.ink[500], marginTop: 2 },
-  expenseAmount: { fontSize: FontSize.lg, fontWeight: '800', color: Colors.ink[900] },
-  empty: { textAlign: 'center', color: Colors.ink[400], marginTop: 60, fontSize: FontSize.sm },
+  expenseTitle: { fontSize: FontSize.md, fontWeight: '600', color: colors.ink[900] },
+  expenseMeta: { fontSize: FontSize.xs, color: colors.ink[500], marginTop: 2 },
+  expenseAmount: { fontSize: FontSize.lg, fontWeight: '800', color: colors.ink[900] },
+  empty: { textAlign: 'center', color: colors.ink[400], marginTop: 60, fontSize: FontSize.sm },
   
   // Modal layout
-  modal: { padding: Spacing.xl, backgroundColor: Colors.surface.soft },
+  modal: { padding: Spacing.xl, backgroundColor: colors.surface.soft },
   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: Spacing.lg },
-  modalTitle: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.ink[900] },
-  modalClose: { fontSize: 20, color: Colors.ink[500] },
+  modalTitle: { fontSize: FontSize.xl, fontWeight: '800', color: colors.ink[900] },
+  modalClose: { fontSize: 20, color: colors.ink[500] },
   
   // SMS helper styling
-  banner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#EEF2FF', borderWidth: 1.5, borderColor: '#C7D2FE', borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.md, gap: Spacing.sm },
+  banner: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#e0e7ff', borderWidth: 1.5, borderColor: '#3b82f6', borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.md, gap: Spacing.sm },
   bannerEmoji: { fontSize: 20 },
-  bannerTitle: { fontSize: FontSize.sm, fontWeight: '700', color: '#3730A3' },
-  bannerSubtitle: { fontSize: FontSize.xs, color: '#4F46E5', marginTop: 2 },
-  bannerCta: { fontSize: FontSize.xs, fontWeight: '800', color: Colors.brand[500] },
+  bannerTitle: { fontSize: FontSize.sm, fontWeight: '700', color: '#1e1b4b' },
+  bannerSubtitle: { fontSize: FontSize.xs, color: '#312e81', marginTop: 2 },
+  bannerCta: { fontSize: FontSize.xs, fontWeight: '800', color: colors.brand[500] },
 
-  smsBox: { backgroundColor: '#F8FAFC', borderWidth: 1, borderStyle: 'solid', borderColor: '#E2E8F0', borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.md, alignItems: 'center' },
-  smsCta: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.brand[500] },
-  smsLabel: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.ink[500], textTransform: 'uppercase', marginBottom: 6 },
-  smsInput: { width: '100%', minHeight: 60, borderWidth: 1, borderColor: '#CBD5E1', borderRadius: BorderRadius.md, backgroundColor: '#fff', padding: Spacing.sm, fontSize: FontSize.sm, color: Colors.ink[900], marginBottom: Spacing.sm },
+  smsBox: { backgroundColor: colors.surface.white, borderWidth: 1, borderStyle: 'solid', borderColor: colors.surface.border, borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.md, alignItems: 'center' },
+  smsCta: { fontSize: FontSize.sm, fontWeight: '700', color: colors.brand[500] },
+  smsLabel: { fontSize: FontSize.xs, fontWeight: '700', color: colors.ink[500], textTransform: 'uppercase', marginBottom: 6 },
+  smsInput: { width: '100%', minHeight: 60, borderWidth: 1, borderColor: colors.surface.border, borderRadius: BorderRadius.md, backgroundColor: colors.surface.soft, padding: Spacing.sm, fontSize: FontSize.sm, color: colors.ink[900], marginBottom: Spacing.sm },
   smsBtnRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 10 },
   smsBtnGhost: { paddingVertical: 6, paddingHorizontal: 12 },
-  smsBtnTextGhost: { color: Colors.ink[500], fontSize: FontSize.xs, fontWeight: '600' },
-  smsBtn: { backgroundColor: Colors.brand[500], paddingVertical: 6, paddingHorizontal: 12, borderRadius: BorderRadius.sm },
+  smsBtnTextGhost: { color: colors.ink[500], fontSize: FontSize.xs, fontWeight: '600' },
+  smsBtn: { backgroundColor: colors.brand[500], paddingVertical: 6, paddingHorizontal: 12, borderRadius: BorderRadius.sm },
   smsBtnText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '700' },
 
-  label: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.ink[700], marginBottom: 6, marginTop: Spacing.sm },
-  input: { borderWidth: 1.5, borderColor: Colors.ink[200], borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: 12, fontSize: FontSize.md, color: Colors.ink[900], backgroundColor: Colors.surface.white, marginBottom: Spacing.sm },
+  label: { fontSize: FontSize.sm, fontWeight: '600', color: colors.ink[700], marginBottom: 6, marginTop: Spacing.sm },
+  input: { borderWidth: 1.5, borderColor: colors.surface.border, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: 12, fontSize: FontSize.md, color: colors.ink[900], backgroundColor: colors.surface.white, marginBottom: Spacing.sm },
   row: { flexDirection: 'row', gap: Spacing.sm, flexWrap: 'wrap', marginBottom: Spacing.sm },
-  chip: { borderWidth: 1.5, borderColor: Colors.ink[200], borderRadius: BorderRadius.full, paddingHorizontal: Spacing.md, paddingVertical: 6 },
-  chipActive: { backgroundColor: Colors.brand[500], borderColor: Colors.brand[500] },
-  chipText: { fontSize: FontSize.sm, color: Colors.ink[700], fontWeight: '600' },
+  chip: { borderWidth: 1.5, borderColor: colors.surface.border, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.md, paddingVertical: 6 },
+  chipActive: { backgroundColor: colors.brand[500], borderColor: colors.brand[500] },
+  chipText: { fontSize: FontSize.sm, color: colors.ink[700], fontWeight: '600' },
   chipTextActive: { color: '#fff' },
-  submitBtn: { backgroundColor: Colors.brand[500], borderRadius: BorderRadius.md, paddingVertical: 14, alignItems: 'center', marginTop: Spacing.xl },
+  submitBtn: { backgroundColor: colors.brand[500], borderRadius: BorderRadius.md, paddingVertical: 14, alignItems: 'center', marginTop: Spacing.xl },
   submitText: { color: '#fff', fontWeight: '700', fontSize: FontSize.md },
-  dateSelectorButton: { borderWidth: 1.5, borderColor: Colors.ink[200], borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: 12, backgroundColor: Colors.surface.white, marginBottom: Spacing.sm },
-  dateSelectorText: { fontSize: FontSize.md, color: Colors.ink[900], fontWeight: '500' },
+  dateSelectorButton: { borderWidth: 1.5, borderColor: colors.surface.border, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, paddingVertical: 12, backgroundColor: colors.surface.white, marginBottom: Spacing.sm },
+  dateSelectorText: { fontSize: FontSize.md, color: colors.ink[900], fontWeight: '500' },
 
   // Detected SMS suggestions list styling
   detectedContainer: { marginBottom: Spacing.md },
-  detectedSectionTitle: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.brand[600], marginBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.5 },
+  detectedSectionTitle: { fontSize: FontSize.sm, fontWeight: '700', color: colors.brand[600], marginBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.5 },
   detectedScroll: { gap: Spacing.sm, paddingRight: Spacing.lg },
-  detectedCard: { backgroundColor: Colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.md, width: 220, borderWidth: 1, borderColor: Colors.brand[100] },
-  detectedCategoryLabel: { fontSize: 11, fontWeight: '700', color: Colors.ink[400], textTransform: 'uppercase' },
-  detectedPrice: { fontSize: FontSize.md, fontWeight: '800', color: Colors.ink[900] },
-  detectedMerchant: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.ink[900], marginBottom: 4 },
-  detectedCta: { fontSize: 10, fontWeight: '700', color: Colors.brand[500], textTransform: 'uppercase' },
-})
+  detectedCard: { backgroundColor: colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.md, width: 220, borderWidth: 1, borderColor: colors.surface.border },
+  detectedCategoryLabel: { fontSize: 11, fontWeight: '700', color: colors.ink[400], textTransform: 'uppercase' },
+  detectedPrice: { fontSize: FontSize.md, fontWeight: '800', color: colors.ink[900] },
+  detectedMerchant: { fontSize: FontSize.sm, fontWeight: '700', color: colors.ink[900], marginBottom: 4 },
+  detectedCta: { fontSize: 10, fontWeight: '700', color: colors.brand[500], textTransform: 'uppercase' },
+}))

@@ -3,6 +3,7 @@ package com.lifeos.document;
 import com.lifeos.common.response.ApiResponse;
 import com.lifeos.common.security.UserDetailsImpl;
 import com.lifeos.document.dto.DocumentResponse;
+import com.lifeos.document.dto.StorageSummaryResponse;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -45,13 +46,25 @@ public class DocumentController {
     }
 
     /**
+     * Retrieves the storage summary (used vs limit) for the authenticated user.
+     *
+     * @param userDetails Spring security principal wrapper
+     * @return standard ApiResponse containing StorageSummaryResponse DTO
+     */
+    @GetMapping("/storage")
+    public ApiResponse<StorageSummaryResponse> getStorageSummary(@AuthenticationPrincipal UserDetailsImpl userDetails) {
+        StorageSummaryResponse response = documentService.getStorageSummary(userDetails.getUser());
+        return ApiResponse.success(response, "Fetched storage summary successfully");
+    }
+
+    /**
      * Retrieves details of a specific document.
      *
      * @param userDetails Spring security principal wrapper
      * @param id          document UUID
      * @return standard ApiResponse containing DocumentResponse DTO
      */
-    @GetMapping("/{id}")
+    @GetMapping("/{id:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}}")
     public ApiResponse<DocumentResponse> getDocumentById(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @PathVariable UUID id
@@ -85,7 +98,7 @@ public class DocumentController {
      * @param id          document UUID
      * @return ResponseEntity holding the Resource stream along with standard attachment headers
      */
-    @GetMapping("/{id}/download")
+    @GetMapping("/{id:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}}/download")
     public ResponseEntity<Resource> downloadDocument(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @PathVariable UUID id
@@ -94,7 +107,7 @@ public class DocumentController {
         Resource fileResource = documentService.downloadDocument(userDetails.getUser(), id);
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + details.getFileName() + "\"")
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + details.getFileName() + "\"")
                 .header(HttpHeaders.CONTENT_TYPE, details.getFileType())
                 .header(HttpHeaders.CONTENT_LENGTH, String.valueOf(details.getFileSize()))
                 .body(fileResource);
@@ -107,7 +120,7 @@ public class DocumentController {
      * @param id          document UUID
      * @return standard ApiResponse with success message
      */
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}}")
     public ApiResponse<Void> deleteDocument(
             @AuthenticationPrincipal UserDetailsImpl userDetails,
             @PathVariable UUID id

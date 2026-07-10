@@ -6,12 +6,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { goalsApi } from '../api/features'
-import { Colors, Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
+import { Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
+import { useTheme, makeStyles } from '../context/ThemeContext'
 import Toast from 'react-native-toast-message'
 import { router } from 'expo-router'
 
 export default function GoalsScreen() {
   const qc = useQueryClient()
+  const { colors } = useTheme()
+  const styles = useStyles()
   const { data: goals = [], isLoading } = useQuery({
     queryKey: ['goals'],
     queryFn: goalsApi.list,
@@ -101,7 +104,7 @@ export default function GoalsScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator color={Colors.brand[500]} style={{ marginTop: 40 }} />
+        <ActivityIndicator color={colors.brand[500]} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
           data={goals as any[]}
@@ -120,7 +123,7 @@ export default function GoalsScreen() {
                     ) : null}
                   </View>
                   <TouchableOpacity onPress={() => handleDelete(item.id)}>
-                    <Text style={{ fontSize: 16 }}>🗑</Text>
+                    <Text style={styles.deleteIcon}>🗑</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -132,7 +135,7 @@ export default function GoalsScreen() {
                         styles.barFill,
                         {
                           width: `${progress}%` as any,
-                          backgroundColor: item.completed ? Colors.status.success : '#8b5cf6',
+                          backgroundColor: item.completed ? colors.status.success : '#8b5cf6',
                         },
                       ]}
                     />
@@ -150,11 +153,11 @@ export default function GoalsScreen() {
                       <Text style={styles.progressText}>+10%</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                      style={[styles.progressBtn, { backgroundColor: Colors.status.success + '20' }]}
+                      style={[styles.progressBtn, { backgroundColor: colors.status.success + '20' }]}
                       onPress={() => handleMarkComplete(item)}
                       disabled={updateGoal.isPending}
                     >
-                      <Text style={[styles.progressText, { color: Colors.status.success }]}>Mark Done ✓</Text>
+                      <Text style={[styles.progressText, { color: colors.status.success }]}>Mark Done ✓</Text>
                     </TouchableOpacity>
                   </View>
                 )}
@@ -182,6 +185,7 @@ export default function GoalsScreen() {
           <TextInput
             style={styles.input}
             placeholder="e.g., Read 20 books this year"
+            placeholderTextColor={colors.ink[400]}
             value={title}
             onChangeText={setTitle}
           />
@@ -190,6 +194,7 @@ export default function GoalsScreen() {
           <TextInput
             style={[styles.input, { height: 72 }]}
             placeholder="Optional notes..."
+            placeholderTextColor={colors.ink[400]}
             multiline
             value={description}
             onChangeText={setDescription}
@@ -199,6 +204,7 @@ export default function GoalsScreen() {
           <TextInput
             style={styles.input}
             placeholder="YYYY-MM-DD"
+            placeholderTextColor={colors.ink[400]}
             value={targetDate}
             onChangeText={setTargetDate}
           />
@@ -212,8 +218,8 @@ export default function GoalsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.surface.soft },
+const useStyles = makeStyles((colors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.surface.soft },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -222,17 +228,17 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  backArrow: { fontSize: 22, color: Colors.ink[900], paddingRight: 4 },
-  title: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.ink[900] },
+  backArrow: { fontSize: 22, color: colors.ink[900], paddingRight: 4 },
+  title: { fontSize: FontSize.xl, fontWeight: '800', color: colors.ink[900] },
   addBtn: {
-    backgroundColor: Colors.brand[500],
+    backgroundColor: colors.brand[500],
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
   },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSize.sm },
   goalCard: {
-    backgroundColor: Colors.surface.white,
+    backgroundColor: colors.surface.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
@@ -240,51 +246,52 @@ const styles = StyleSheet.create({
   },
   goalCardDone: { opacity: 0.8 },
   goalTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
-  goalTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.ink[900] },
-  goalTitleDone: { textDecorationLine: 'line-through', color: Colors.ink[400] },
-  goalDesc: { fontSize: FontSize.xs, color: Colors.ink[500], marginTop: 2 },
-  goalDate: { fontSize: FontSize.xs, color: Colors.brand[600], marginTop: 4, fontWeight: '600' },
+  goalTitle: { fontSize: FontSize.md, fontWeight: '700', color: colors.ink[900] },
+  goalTitleDone: { textDecorationLine: 'line-through', color: colors.ink[400] },
+  goalDesc: { fontSize: FontSize.xs, color: colors.ink[500], marginTop: 2 },
+  goalDate: { fontSize: FontSize.xs, color: colors.brand[600], marginTop: 4, fontWeight: '600' },
   progWrap: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
-  barBg: { flex: 1, height: 8, borderRadius: BorderRadius.full, backgroundColor: Colors.surface.soft },
+  barBg: { flex: 1, height: 8, borderRadius: BorderRadius.full, backgroundColor: colors.surface.soft },
   barFill: { height: '100%', borderRadius: BorderRadius.full },
-  pctText: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.ink[700], minWidth: 32, textAlign: 'right' },
+  pctText: { fontSize: FontSize.xs, fontWeight: '700', color: colors.ink[700], minWidth: 32, textAlign: 'right' },
   goalActions: { flexDirection: 'row', gap: Spacing.sm },
   progressBtn: {
-    backgroundColor: Colors.brand[50],
+    backgroundColor: colors.brand[50],
     borderRadius: BorderRadius.sm,
     paddingHorizontal: 12,
     paddingVertical: 7,
   },
-  progressText: { color: Colors.brand[600], fontSize: FontSize.xs, fontWeight: '700' },
-  completedBadge: { fontSize: FontSize.sm, color: Colors.status.success, fontWeight: '700' },
-  empty: { textAlign: 'center', color: Colors.ink[400], marginTop: 60, fontSize: FontSize.sm },
-  modal: { flex: 1, padding: Spacing.xl, backgroundColor: Colors.surface.soft },
+  progressText: { color: colors.brand[600], fontSize: FontSize.xs, fontWeight: '700' },
+  completedBadge: { fontSize: FontSize.sm, color: colors.status.success, fontWeight: '700' },
+  deleteIcon: { fontSize: 16, color: colors.status.error },
+  empty: { textAlign: 'center', color: colors.ink[400], marginTop: 60, fontSize: FontSize.sm },
+  modal: { flex: 1, padding: Spacing.xl, backgroundColor: colors.surface.soft },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.xl,
   },
-  modalTitle: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.ink[900] },
-  modalClose: { fontSize: 20, color: Colors.ink[500] },
-  label: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.ink[700], marginBottom: 6, marginTop: Spacing.sm },
+  modalTitle: { fontSize: FontSize.xl, fontWeight: '800', color: colors.ink[900] },
+  modalClose: { fontSize: 20, color: colors.ink[500] },
+  label: { fontSize: FontSize.sm, fontWeight: '600', color: colors.ink[700], marginBottom: 6, marginTop: Spacing.sm },
   input: {
     borderWidth: 1.5,
-    borderColor: Colors.ink[200],
+    borderColor: colors.surface.border,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 12,
     fontSize: FontSize.md,
-    color: Colors.ink[900],
-    backgroundColor: Colors.surface.white,
+    color: colors.ink[900],
+    backgroundColor: colors.surface.white,
     marginBottom: Spacing.sm,
   },
   submitBtn: {
-    backgroundColor: Colors.brand[500],
+    backgroundColor: colors.brand[500],
     borderRadius: BorderRadius.md,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: Spacing.xl,
   },
   submitText: { color: '#fff', fontWeight: '700', fontSize: FontSize.md },
-})
+}))

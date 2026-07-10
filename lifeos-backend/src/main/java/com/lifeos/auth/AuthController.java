@@ -3,6 +3,8 @@ package com.lifeos.auth;
 import com.lifeos.auth.dto.AuthResponse;
 import com.lifeos.auth.dto.LoginRequest;
 import com.lifeos.auth.dto.RegisterRequest;
+import com.lifeos.auth.dto.ForgotPasswordRequest;
+import com.lifeos.auth.dto.ResetPasswordRequest;
 import com.lifeos.common.response.ApiResponse;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -50,5 +52,29 @@ public class AuthController {
     public ApiResponse<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
         return ApiResponse.success(response, "User authenticated successfully");
+    }
+
+    /**
+     * Request a password reset code.
+     *
+     * @param request forgot password DTO containing email
+     * @return ApiResponse containing the success message and generated reset code (for testing)
+     */
+    @PostMapping("/forgot-password")
+    public ApiResponse<java.util.Map<String, String>> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        java.util.Map<String, String> response = authService.forgotPassword(request);
+        return ApiResponse.success(response, "Password reset code sent successfully");
+    }
+
+    /**
+     * Confirm password reset using OTP.
+     *
+     * @param request reset password DTO containing email, code, and new password
+     * @return ApiResponse confirming the password has been reset
+     */
+    @PostMapping("/reset-password")
+    public ApiResponse<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        authService.resetPassword(request);
+        return ApiResponse.success(null, "Password reset successfully");
     }
 }

@@ -6,11 +6,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { aiApi, subscriptionsApi } from '../api/features'
-import { Colors, Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
+import { Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
+import { useTheme, makeStyles } from '../context/ThemeContext'
 import Toast from 'react-native-toast-message'
 import { router, useLocalSearchParams } from 'expo-router'
 
 function PremiumGate() {
+  const gate = useGateStyles()
   return (
     <ScrollView contentContainerStyle={gate.container} showsVerticalScrollIndicator={false}>
       <View style={gate.iconWrap}>
@@ -45,6 +47,8 @@ function PremiumGate() {
 export default function AIAssistantScreen() {
   const { prompt } = useLocalSearchParams<{ prompt?: string }>()
   const qc = useQueryClient()
+  const { colors } = useTheme()
+  const styles = useStyles()
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -95,14 +99,19 @@ export default function AIAssistantScreen() {
   // ── Effects ───────────────────────────────────────────────────────────────
   useEffect(() => {
     if (prompt) {
-      setDraft(prompt)
-      router.setParams({ prompt: undefined })
+      setTimeout(() => {
+        setDraft(prompt)
+        router.setParams({ prompt: undefined })
+      }, 0)
     }
   }, [prompt])
 
   useEffect(() => {
     if (!activeId && conversations.length > 0) {
-      setActiveId(conversations[0].id)
+      const firstId = conversations[0].id
+      setTimeout(() => {
+        setActiveId(firstId)
+      }, 0)
     }
   }, [conversations, activeId])
 
@@ -112,7 +121,7 @@ export default function AIAssistantScreen() {
     if (conversations.length === 0 && !createConv.isPending) {
       createConv.mutate('New Chat')
     }
-  }, [conversations.length, convsLoading, isPremium, subLoading])
+  }, [conversations.length, convsLoading, isPremium, subLoading, createConv])
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handleSend = () => {
@@ -124,7 +133,7 @@ export default function AIAssistantScreen() {
   if (subLoading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <ActivityIndicator color={Colors.brand[500]} style={{ flex: 1 }} />
+        <ActivityIndicator color={colors.brand[500]} style={{ flex: 1 }} />
       </SafeAreaView>
     )
   }
@@ -166,7 +175,7 @@ export default function AIAssistantScreen() {
           keyboardVerticalOffset={80}
         >
           {msgsLoading ? (
-            <ActivityIndicator color={Colors.brand[500]} style={{ flex: 1 }} />
+            <ActivityIndicator color={colors.brand[500]} style={{ flex: 1 }} />
           ) : (
             <FlatList
               data={messages}
@@ -194,7 +203,7 @@ export default function AIAssistantScreen() {
             <TextInput
               style={styles.input}
               placeholder={createConv.isPending ? 'Creating chat session...' : 'Type a message...'}
-              placeholderTextColor={Colors.ink[300]}
+              placeholderTextColor={colors.ink[400]}
               value={draft}
               onChangeText={setDraft}
               onSubmitEditing={handleSend}
@@ -219,42 +228,42 @@ export default function AIAssistantScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.surface.soft },
+const useStyles = makeStyles((colors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.surface.soft },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.lg, paddingBottom: Spacing.md },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  backArrow: { fontSize: 22, color: Colors.ink[900], paddingRight: 4 },
-  title: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.ink[900] },
-  premiumBadge: { backgroundColor: Colors.brand[500], paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
+  backArrow: { fontSize: 22, color: colors.ink[900], paddingRight: 4 },
+  title: { fontSize: FontSize.xl, fontWeight: '800', color: colors.ink[900] },
+  premiumBadge: { backgroundColor: colors.brand[500], paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
   premiumBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
-  newChatBtn: { backgroundColor: Colors.brand[500], paddingHorizontal: 12, paddingVertical: 6, borderRadius: BorderRadius.sm },
+  newChatBtn: { backgroundColor: colors.brand[500], paddingHorizontal: 12, paddingVertical: 6, borderRadius: BorderRadius.sm },
   newChatText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '700' },
   chatList: { padding: Spacing.lg, gap: Spacing.sm },
   bubble: { padding: Spacing.md, borderRadius: BorderRadius.lg, maxWidth: '80%', ...Shadow.sm },
-  bubbleUser: { alignSelf: 'flex-end', backgroundColor: Colors.brand[500] },
-  bubbleAi: { alignSelf: 'flex-start', backgroundColor: Colors.surface.white },
+  bubbleUser: { alignSelf: 'flex-end', backgroundColor: colors.brand[500] },
+  bubbleAi: { alignSelf: 'flex-start', backgroundColor: colors.surface.white },
   bubbleText: { fontSize: FontSize.md, lineHeight: 20 },
   textUser: { color: '#fff' },
-  textAi: { color: Colors.ink[900] },
+  textAi: { color: colors.ink[900] },
   empty: { alignItems: 'center', marginVertical: 80, paddingHorizontal: 40 },
-  emptyTitle: { fontSize: FontSize.lg, fontWeight: '800', color: Colors.ink[900], marginBottom: 4 },
-  emptyDesc: { fontSize: FontSize.sm, color: Colors.ink[400], textAlign: 'center' },
-  inputBar: { flexDirection: 'row', padding: Spacing.md, gap: Spacing.sm, backgroundColor: Colors.surface.white, borderTopWidth: 1, borderTopColor: Colors.surface.border },
-  input: { flex: 1, borderWidth: 1.5, borderColor: Colors.ink[200], borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, height: 44, color: Colors.ink[900], backgroundColor: Colors.surface.soft },
-  sendBtn: { backgroundColor: Colors.brand[500], width: 44, height: 44, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
-})
+  emptyTitle: { fontSize: FontSize.lg, fontWeight: '800', color: colors.ink[900], marginBottom: 4 },
+  emptyDesc: { fontSize: FontSize.sm, color: colors.ink[400], textAlign: 'center' },
+  inputBar: { flexDirection: 'row', padding: Spacing.md, gap: Spacing.sm, backgroundColor: colors.surface.white, borderTopWidth: 1, borderTopColor: colors.surface.border },
+  input: { flex: 1, borderWidth: 1.5, borderColor: colors.surface.border, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, height: 44, color: colors.ink[900], backgroundColor: colors.surface.soft },
+  sendBtn: { backgroundColor: colors.brand[500], width: 44, height: 44, borderRadius: BorderRadius.md, alignItems: 'center', justifyContent: 'center' },
+}))
 
-const gate = StyleSheet.create({
+const useGateStyles = makeStyles((colors) => StyleSheet.create({
   container: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: Spacing.xl, paddingTop: Spacing.lg },
-  iconWrap: { width: 80, height: 80, borderRadius: 22, backgroundColor: Colors.brand[500], alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg, ...Shadow.md },
+  iconWrap: { width: 80, height: 80, borderRadius: 22, backgroundColor: colors.brand[500], alignItems: 'center', justifyContent: 'center', marginBottom: Spacing.lg, ...Shadow.md },
   icon: { fontSize: 38 },
-  title: { fontSize: 22, fontWeight: '800', color: Colors.ink[900], textAlign: 'center', marginBottom: Spacing.sm },
-  subtitle: { fontSize: FontSize.sm, color: Colors.ink[500], textAlign: 'center', lineHeight: 20, marginBottom: Spacing.xl },
-  featureBox: { width: '100%', backgroundColor: Colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.lg, gap: Spacing.md, marginBottom: Spacing.xl, ...Shadow.sm },
+  title: { fontSize: 22, fontWeight: '800', color: colors.ink[900], textAlign: 'center', marginBottom: Spacing.sm },
+  subtitle: { fontSize: FontSize.sm, color: colors.ink[500], textAlign: 'center', lineHeight: 20, marginBottom: Spacing.xl },
+  featureBox: { width: '100%', backgroundColor: colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.lg, gap: Spacing.md, marginBottom: Spacing.xl, ...Shadow.sm },
   featureRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   featureEmoji: { fontSize: 18, width: 28 },
-  featureText: { fontSize: FontSize.sm, color: Colors.ink[700], flex: 1 },
-  cta: { width: '100%', backgroundColor: Colors.brand[500], borderRadius: BorderRadius.lg, paddingVertical: 15, alignItems: 'center', marginBottom: Spacing.sm, ...Shadow.md },
+  featureText: { fontSize: FontSize.sm, color: colors.ink[700], flex: 1 },
+  cta: { width: '100%', backgroundColor: colors.brand[500], borderRadius: BorderRadius.lg, paddingVertical: 15, alignItems: 'center', marginBottom: Spacing.sm, ...Shadow.md },
   ctaText: { color: '#fff', fontWeight: '800', fontSize: FontSize.md },
-  ctaNote: { fontSize: FontSize.xs, color: Colors.ink[400] },
-})
+  ctaNote: { fontSize: FontSize.xs, color: colors.ink[400] },
+}))

@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
-
 import { authApi } from '@/api/auth'
 import toast from 'react-hot-toast'
+import { Logo } from '@/components/ui/Logo'
 
 export default function RegisterPage() {
   const { isAuthenticated } = useAuth()
@@ -44,9 +44,7 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-surface-soft px-4">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center">
-          <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-brand-500">
-            <div className="h-4 w-4 rounded-full bg-white" />
-          </div>
+          <Logo className="mb-3" size="md" />
           <h1 className="font-display text-2xl font-bold text-ink-900">Create your account</h1>
           <p className="mt-1 text-sm text-ink-500">Start planning your life with LifeOS</p>
         </div>

@@ -1,10 +1,10 @@
-import { useState } from 'react'
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Colors, Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
+import { Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
 import { router } from 'expo-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { subscriptionsApi } from '../api/features'
+import { useTheme, makeStyles } from '../context/ThemeContext'
 import Toast from 'react-native-toast-message'
 
 type Plan = 'FREE' | 'MONTHLY' | 'ANNUAL'
@@ -27,6 +27,8 @@ const PLANS: { plan: Plan; name: string; price: string; features: string[] }[] =
 
 export default function SubscriptionsScreen() {
   const qc = useQueryClient()
+  const { colors } = useTheme()
+  const styles = useStyles()
   const { data: subscription, isLoading } = useQuery({
     queryKey: ['subscription'],
     queryFn: subscriptionsApi.me,
@@ -89,7 +91,7 @@ export default function SubscriptionsScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator color={Colors.brand[500]} style={{ marginTop: 60 }} />
+        <ActivityIndicator color={colors.brand[500]} style={{ marginTop: 60 }} />
       ) : (
         <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
           {/* Current plan banner */}
@@ -157,8 +159,8 @@ export default function SubscriptionsScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.surface.soft },
+const useStyles = makeStyles((colors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.surface.soft },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -167,22 +169,22 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.md,
   },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  backArrow: { fontSize: 22, color: Colors.ink[900], paddingRight: 4 },
-  title: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.ink[900] },
+  backArrow: { fontSize: 22, color: colors.ink[900], paddingRight: 4 },
+  title: { fontSize: FontSize.xl, fontWeight: '800', color: colors.ink[900] },
   content: { padding: Spacing.lg, paddingBottom: 40 },
   currentBanner: {
-    backgroundColor: Colors.brand[500],
+    backgroundColor: colors.brand[500],
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
     marginBottom: Spacing.xl,
     ...Shadow.md,
   },
-  bannerLabel: { color: Colors.brand[100], fontSize: FontSize.xs, fontWeight: '600' },
+  bannerLabel: { color: colors.brand[100], fontSize: FontSize.xs, fontWeight: '600' },
   bannerPlan: { color: '#fff', fontSize: 28, fontWeight: '800', marginTop: 4 },
-  bannerStatus: { color: Colors.brand[50], fontSize: FontSize.xs, marginTop: 2 },
-  sectionTitle: { fontSize: FontSize.md, fontWeight: '700', color: Colors.ink[900], marginBottom: Spacing.md },
+  bannerStatus: { color: colors.brand[50], fontSize: FontSize.xs, marginTop: 2 },
+  sectionTitle: { fontSize: FontSize.md, fontWeight: '700', color: colors.ink[900], marginBottom: Spacing.md },
   planCard: {
-    backgroundColor: Colors.surface.white,
+    backgroundColor: colors.surface.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.lg,
     marginBottom: Spacing.md,
@@ -191,21 +193,21 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   planCardActive: {
-    borderColor: Colors.brand[500],
-    backgroundColor: Colors.brand[50],
+    borderColor: colors.brand[500],
+    backgroundColor: colors.brand[50],
   },
   planTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.sm },
-  planName: { fontSize: FontSize.lg, fontWeight: '800', color: Colors.ink[900] },
-  planNameActive: { color: Colors.brand[700] },
-  planPrice: { fontSize: FontSize.md, fontWeight: '700', color: Colors.ink[500], marginTop: 2 },
-  planPriceActive: { color: Colors.brand[600] },
-  activeBadge: { backgroundColor: Colors.brand[500], borderRadius: BorderRadius.full, paddingHorizontal: 10, paddingVertical: 4 },
+  planName: { fontSize: FontSize.lg, fontWeight: '800', color: colors.ink[900] },
+  planNameActive: { color: colors.brand[700] },
+  planPrice: { fontSize: FontSize.md, fontWeight: '700', color: colors.ink[500], marginTop: 2 },
+  planPriceActive: { color: colors.brand[600] },
+  activeBadge: { backgroundColor: colors.brand[500], borderRadius: BorderRadius.full, paddingHorizontal: 10, paddingVertical: 4 },
   activeBadgeText: { color: '#fff', fontSize: FontSize.xs, fontWeight: '700' },
   features: { marginBottom: Spacing.md },
-  featureItem: { fontSize: FontSize.sm, color: Colors.ink[500], paddingVertical: 3 },
-  featureItemActive: { color: Colors.brand[700] },
+  featureItem: { fontSize: FontSize.sm, color: colors.ink[500], paddingVertical: 3 },
+  featureItemActive: { color: colors.brand[700] },
   selectBtn: {
-    backgroundColor: Colors.brand[500],
+    backgroundColor: colors.brand[500],
     borderRadius: BorderRadius.md,
     paddingVertical: 12,
     alignItems: 'center',
@@ -213,12 +215,12 @@ const styles = StyleSheet.create({
   selectBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSize.sm },
   cancelBtn: {
     borderWidth: 1.5,
-    borderColor: Colors.status.error,
+    borderColor: colors.status.error,
     borderRadius: BorderRadius.md,
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: Spacing.sm,
   },
-  cancelBtnText: { color: Colors.status.error, fontWeight: '700', fontSize: FontSize.sm },
-  cancelNote: { fontSize: FontSize.sm, color: Colors.status.warning, textAlign: 'center', marginTop: Spacing.md, fontWeight: '600' },
-})
+  cancelBtnText: { color: colors.status.error, fontWeight: '700', fontSize: FontSize.sm },
+  cancelNote: { fontSize: FontSize.sm, color: colors.status.warning, textAlign: 'center', marginTop: Spacing.md, fontWeight: '600' },
+}))

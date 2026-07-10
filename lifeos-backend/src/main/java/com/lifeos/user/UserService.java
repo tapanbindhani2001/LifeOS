@@ -40,19 +40,21 @@ public class UserService {
                 .email(user.getEmail())
                 .fullName(user.getFullName())
                 .role(user.getRole())
+                .profilePicture(user.getProfilePicture())
                 .build();
     }
 
     /**
-     * Updates full name of the user profile.
+     * Updates full name and profile picture of the user profile.
      *
      * @param user    the currently authenticated user entity
-     * @param request profile update DTO containing new full name
+     * @param request profile update DTO containing new full name and optional profile picture
      * @return updated UserResponse DTO
      */
     @Transactional
     public UserResponse updateProfile(User user, UpdateProfileRequest request) {
         user.setFullName(request.getFullName());
+        user.setProfilePicture(request.getProfilePicture());
         User savedUser = userRepository.save(user);
         return mapToUserResponse(savedUser);
     }

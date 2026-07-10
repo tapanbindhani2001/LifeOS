@@ -34,6 +34,9 @@ public class User extends BaseAuditEntity {
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
+    @Column(name = "profile_picture", columnDefinition = "TEXT")
+    private String profilePicture;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     private Role role;

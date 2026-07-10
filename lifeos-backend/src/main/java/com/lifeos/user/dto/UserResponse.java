@@ -19,5 +19,6 @@ public class UserResponse {
     private UUID id;
     private String email;
     private String fullName;
+    private String profilePicture;
     private Role role;
 }

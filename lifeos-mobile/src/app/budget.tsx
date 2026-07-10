@@ -6,7 +6,8 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { budgetApi } from '../api/features'
-import { Colors, Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
+import { Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
+import { useTheme, makeStyles } from '../context/ThemeContext'
 import Toast from 'react-native-toast-message'
 
 const CATEGORIES = [
@@ -41,10 +42,20 @@ function BudgetCard({
   onEdit: () => void
   onDelete: () => void
 }) {
+  const card = useCardStyles()
+  const { theme } = useTheme()
   const cfg = getStatusConfig(budget.status)
   const displayPct = Math.min(budget.percentage, 100)
   const catMeta = CATEGORIES.find(c => c.key === budget.category)
   const remaining = budget.monthlyLimit - budget.spent
+
+  // Adjust status badge color for dark theme
+  const badgeBg = theme === 'dark' 
+    ? (budget.status === 'OVER_BUDGET' ? '#3b1818' : budget.status === 'WARNING' ? '#3d2b12' : '#123b28')
+    : cfg.badge
+  const badgeText = theme === 'dark'
+    ? (budget.status === 'OVER_BUDGET' ? '#f87171' : budget.status === 'WARNING' ? '#fbbf24' : '#34d399')
+    : cfg.badgeText
 
   return (
     <View style={[card.container, Shadow.sm]}>
@@ -81,8 +92,8 @@ function BudgetCard({
 
       {/* Badge + remaining */}
       <View style={card.bottomRow}>
-        <View style={[card.badge, { backgroundColor: cfg.badge }]}>
-          <Text style={[card.badgeText, { color: cfg.badgeText }]}>{cfg.label}</Text>
+        <View style={[card.badge, { backgroundColor: badgeBg }]}>
+          <Text style={[card.badgeText, { color: badgeText }]}>{cfg.label}</Text>
         </View>
         {budget.status !== 'OVER_BUDGET' ? (
           <Text style={card.remaining}>{formatINR(remaining)} left</Text>
@@ -107,6 +118,8 @@ function SetBudgetModal({
   onSave: (category: string, limit: number) => void
   saving: boolean
 }) {
+  const { colors } = useTheme()
+  const modal = useModalStyles()
   const [category, setCategory] = useState(initial?.category ?? 'FOOD')
   const [limit, setLimit] = useState(initial ? String(initial.monthlyLimit) : '')
 
@@ -150,7 +163,7 @@ function SetBudgetModal({
             <TextInput
               style={modal.input}
               placeholder="e.g. 5000"
-              placeholderTextColor={Colors.ink[300]}
+              placeholderTextColor={colors.ink[400]}
               keyboardType="numeric"
               value={limit}
               onChangeText={setLimit}
@@ -178,6 +191,8 @@ function SetBudgetModal({
 
 export default function BudgetScreen() {
   const qc = useQueryClient()
+  const { colors } = useTheme()
+  const s = useSStyles()
   const [modalVisible, setModalVisible] = useState(false)
   const [editTarget, setEditTarget] = useState<any>(null)
   const [newCategory, setNewCategory] = useState<string | null>(null)
@@ -269,7 +284,7 @@ export default function BudgetScreen() {
       </View>
 
       {isLoading ? (
-        <ActivityIndicator color={Colors.brand[500]} style={{ flex: 1 }} />
+        <ActivityIndicator color={colors.brand[500]} style={{ flex: 1 }} />
       ) : (
         <FlatList
           data={budgets as any[]}
@@ -336,71 +351,71 @@ export default function BudgetScreen() {
   )
 }
 
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.surface.soft },
+const useSStyles = makeStyles((colors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.surface.soft },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.lg, paddingBottom: Spacing.md },
-  title: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.ink[900] },
-  subtitle: { fontSize: FontSize.xs, color: Colors.ink[400], marginTop: 2 },
-  addBtn: { backgroundColor: Colors.brand[500], paddingHorizontal: 14, paddingVertical: 7, borderRadius: BorderRadius.sm },
+  title: { fontSize: FontSize.xl, fontWeight: '800', color: colors.ink[900] },
+  subtitle: { fontSize: FontSize.xs, color: colors.ink[400], marginTop: 2 },
+  addBtn: { backgroundColor: colors.brand[500], paddingHorizontal: 14, paddingVertical: 7, borderRadius: BorderRadius.sm },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSize.sm },
-  summaryStrip: { flexDirection: 'row', backgroundColor: Colors.surface.white, marginHorizontal: Spacing.lg, borderRadius: BorderRadius.lg, padding: Spacing.md, ...Shadow.sm, marginBottom: Spacing.md },
+  summaryStrip: { flexDirection: 'row', backgroundColor: colors.surface.white, marginHorizontal: Spacing.lg, borderRadius: BorderRadius.lg, padding: Spacing.md, ...Shadow.sm, marginBottom: Spacing.md },
   summaryCard: { flex: 1, alignItems: 'center' },
-  summaryLabel: { fontSize: FontSize.xs, color: Colors.ink[400], marginBottom: 2 },
-  summaryValue: { fontSize: FontSize.md, fontWeight: '800', color: Colors.ink[900] },
-  summaryDivider: { width: 1, backgroundColor: Colors.surface.border },
+  summaryLabel: { fontSize: FontSize.xs, color: colors.ink[400], marginBottom: 2 },
+  summaryValue: { fontSize: FontSize.md, fontWeight: '800', color: colors.ink[900] },
+  summaryDivider: { width: 1, backgroundColor: colors.surface.border },
   list: { padding: Spacing.lg, gap: Spacing.md },
-  sectionLabel: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.ink[400], textTransform: 'uppercase', letterSpacing: 0.8, marginTop: Spacing.lg, marginBottom: Spacing.sm },
-  unbudgetedRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: Colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: Colors.surface.border, borderStyle: 'dashed' },
+  sectionLabel: { fontSize: FontSize.xs, fontWeight: '700', color: colors.ink[400], textTransform: 'uppercase', letterSpacing: 0.8, marginTop: Spacing.lg, marginBottom: Spacing.sm },
+  unbudgetedRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', backgroundColor: colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.sm, borderWidth: 1, borderColor: colors.surface.border, borderStyle: 'dashed' },
   unbudgetedLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   unbudgetedEmoji: { fontSize: 22 },
-  unbudgetedLabel: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.ink[700] },
-  unbudgetedSub: { fontSize: FontSize.xs, color: Colors.ink[400] },
-  unbudgetedCta: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.brand[500] },
+  unbudgetedLabel: { fontSize: FontSize.sm, fontWeight: '600', color: colors.ink[700] },
+  unbudgetedSub: { fontSize: FontSize.xs, color: colors.ink[400] },
+  unbudgetedCta: { fontSize: FontSize.xs, fontWeight: '700', color: colors.brand[500] },
   empty: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 },
-  emptyTitle: { fontSize: FontSize.lg, fontWeight: '800', color: Colors.ink[900], marginBottom: 6 },
-  emptyDesc: { fontSize: FontSize.sm, color: Colors.ink[400], textAlign: 'center', marginBottom: 20 },
-  emptyBtn: { backgroundColor: Colors.brand[500], paddingHorizontal: 20, paddingVertical: 10, borderRadius: BorderRadius.md },
+  emptyTitle: { fontSize: FontSize.lg, fontWeight: '800', color: colors.ink[900], marginBottom: 6 },
+  emptyDesc: { fontSize: FontSize.sm, color: colors.ink[400], textAlign: 'center', marginBottom: 20 },
+  emptyBtn: { backgroundColor: colors.brand[500], paddingHorizontal: 20, paddingVertical: 10, borderRadius: BorderRadius.md },
   emptyBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSize.sm },
-})
+}))
 
-const card = StyleSheet.create({
-  container: { backgroundColor: Colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.sm },
+const useCardStyles = makeStyles((colors) => StyleSheet.create({
+  container: { backgroundColor: colors.surface.white, borderRadius: BorderRadius.lg, padding: Spacing.md, marginBottom: Spacing.sm },
   topRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: Spacing.sm },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  emojiWrap: { width: 40, height: 40, borderRadius: 10, backgroundColor: Colors.surface.soft, alignItems: 'center', justifyContent: 'center' },
+  emojiWrap: { width: 40, height: 40, borderRadius: 10, backgroundColor: colors.surface.soft, alignItems: 'center', justifyContent: 'center' },
   emoji: { fontSize: 20 },
-  catLabel: { fontSize: FontSize.md, fontWeight: '700', color: Colors.ink[900] },
-  limitText: { fontSize: FontSize.xs, color: Colors.ink[400], marginTop: 1 },
+  catLabel: { fontSize: FontSize.md, fontWeight: '700', color: colors.ink[900] },
+  limitText: { fontSize: FontSize.xs, color: colors.ink[400], marginTop: 1 },
   actions: { flexDirection: 'row' },
   actionBtn: { padding: 5 },
   actionBtnText: { fontSize: 14 },
-  barBg: { height: 8, backgroundColor: Colors.surface.soft, borderRadius: 4, overflow: 'hidden', marginBottom: Spacing.xs },
+  barBg: { height: 8, backgroundColor: colors.surface.soft, borderRadius: 4, overflow: 'hidden', marginBottom: Spacing.xs },
   barFill: { height: 8, borderRadius: 4 },
   statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: Spacing.xs },
-  statsSpent: { fontSize: FontSize.xs, fontWeight: '600', color: Colors.ink[700] },
-  statsPct: { fontSize: FontSize.xs, color: Colors.ink[400] },
+  statsSpent: { fontSize: FontSize.xs, fontWeight: '600', color: colors.ink[700] },
+  statsPct: { fontSize: FontSize.xs, color: colors.ink[400] },
   bottomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 99 },
   badgeText: { fontSize: 11, fontWeight: '700' },
-  remaining: { fontSize: FontSize.xs, color: Colors.ink[500], fontWeight: '600' },
-})
+  remaining: { fontSize: FontSize.xs, color: colors.ink[500], fontWeight: '600' },
+}))
 
-const modal = StyleSheet.create({
+const useModalStyles = makeStyles((colors) => StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: Spacing.xl, paddingBottom: 36 },
-  title: { fontSize: FontSize.lg, fontWeight: '800', color: Colors.ink[900], marginBottom: Spacing.lg },
+  sheet: { backgroundColor: colors.surface.white, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: Spacing.xl, paddingBottom: 36 },
+  title: { fontSize: FontSize.lg, fontWeight: '800', color: colors.ink[900], marginBottom: Spacing.lg },
   section: { marginBottom: Spacing.lg },
-  label: { fontSize: FontSize.xs, fontWeight: '700', color: Colors.ink[500], marginBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.5 },
+  label: { fontSize: FontSize.xs, fontWeight: '700', color: colors.ink[500], marginBottom: Spacing.xs, textTransform: 'uppercase', letterSpacing: 0.5 },
   catScroll: { marginHorizontal: -4 },
-  catChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 99, borderWidth: 1.5, borderColor: Colors.ink[200], marginHorizontal: 4, backgroundColor: Colors.surface.soft },
-  catChipActive: { borderColor: Colors.brand[500], backgroundColor: '#EEF2FF' },
+  catChip: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 99, borderWidth: 1.5, borderColor: colors.surface.border, marginHorizontal: 4, backgroundColor: colors.surface.soft },
+  catChipActive: { borderColor: colors.brand[500], backgroundColor: colors.brand[50] },
   catEmoji: { fontSize: 14 },
-  catChipText: { fontSize: FontSize.xs, fontWeight: '600', color: Colors.ink[500] },
-  catChipTextActive: { color: Colors.brand[500] },
-  input: { borderWidth: 1.5, borderColor: Colors.ink[200], borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, height: 48, fontSize: FontSize.md, color: Colors.ink[900], backgroundColor: Colors.surface.soft },
+  catChipText: { fontSize: FontSize.xs, fontWeight: '600', color: colors.ink[500] },
+  catChipTextActive: { color: colors.brand[500] },
+  input: { borderWidth: 1.5, borderColor: colors.surface.border, borderRadius: BorderRadius.md, paddingHorizontal: Spacing.md, height: 48, fontSize: FontSize.md, color: colors.ink[900], backgroundColor: colors.surface.soft },
   btnRow: { flexDirection: 'row', gap: Spacing.sm },
-  cancelBtn: { flex: 1, paddingVertical: 13, borderRadius: BorderRadius.md, borderWidth: 1.5, borderColor: Colors.ink[200], alignItems: 'center' },
-  cancelText: { fontWeight: '700', color: Colors.ink[700], fontSize: FontSize.sm },
-  saveBtn: { flex: 2, paddingVertical: 13, borderRadius: BorderRadius.md, backgroundColor: Colors.brand[500], alignItems: 'center' },
+  cancelBtn: { flex: 1, paddingVertical: 13, borderRadius: BorderRadius.md, borderWidth: 1.5, borderColor: colors.surface.border, alignItems: 'center' },
+  cancelText: { fontWeight: '700', color: colors.ink[700], fontSize: FontSize.sm },
+  saveBtn: { flex: 2, paddingVertical: 13, borderRadius: BorderRadius.md, backgroundColor: colors.brand[500], alignItems: 'center' },
   saveText: { fontWeight: '800', color: '#fff', fontSize: FontSize.sm },
-})
+}))

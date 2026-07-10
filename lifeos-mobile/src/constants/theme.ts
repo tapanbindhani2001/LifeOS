@@ -1,5 +1,4 @@
-// LifeOS Mobile Design Tokens
-export const Colors = {
+export const LightColors = {
   brand: {
     50: '#eff6ff',
     100: '#dbeafe',
@@ -31,6 +30,41 @@ export const Colors = {
     info: '#3b82f6',
   },
 }
+
+export const DarkColors = {
+  brand: {
+    50: '#0f172a',    // Very dark slate-blue for card/button backdrops
+    100: '#1e293b',   // Medium slate-blue
+    200: '#334155',   // Light-medium slate-blue
+    300: '#93c5fd',   // Vibrant light blue
+    400: '#60a5fa',   // Bright blue
+    500: '#3b82f6',   // Primary brand blue
+    600: '#60a5fa',   // High-contrast readable blue for texts in dark mode
+    700: '#93c5fd',   // Super bright blue
+  },
+  ink: {
+    900: '#f8fafc', // primary text
+    700: '#e2e8f0', // secondary text
+    500: '#cbd5e1', // text tertiary
+    400: '#94a3b8', // muted text / placeholder
+    300: '#64748b',
+    200: '#334155', // dark border
+    100: '#1e293b', // darker border
+  },
+  surface: {
+    white: '#18181b',  // zinc-900 card bg
+    soft: '#09090b',   // zinc-950 main page bg
+    border: '#27272a', // zinc-800 border
+  },
+  status: {
+    success: '#10b981',
+    warning: '#fbbf24',
+    error: '#f87171',
+    info: '#60a5fa',
+  },
+}
+
+export const Colors = LightColors;
 
 export const Spacing = {
   xs: 4,

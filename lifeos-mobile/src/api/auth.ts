@@ -1,4 +1,4 @@
-import { apiGet, apiPost } from './client'
+import { apiGet, apiPost, apiPut } from './client'
 
 export interface LoginRequest { email: string; password: string }
 export interface RegisterRequest { fullName: string; email: string; password: string }
@@ -10,6 +10,7 @@ export interface User {
   role: string
   bio?: string
   avatarUrl?: string
+  profilePicture?: string
 }
 
 export interface AuthResponse {
@@ -21,4 +22,7 @@ export const authApi = {
   login: (payload: LoginRequest) => apiPost<AuthResponse>('/auth/login', payload),
   register: (payload: RegisterRequest) => apiPost<AuthResponse>('/auth/register', payload),
   me: () => apiGet<User>('/users/me'),
+  updateProfile: (payload: { fullName: string; profilePicture?: string }) => apiPut<User>('/users/profile', payload),
+  forgotPassword: (email: string) => apiPost<{ message: string; resetCode?: string }>('/auth/forgot-password', { email }),
+  resetPassword: (payload: { email: string; code: string; newPassword: string }) => apiPost<void>('/auth/reset-password', payload),
 }

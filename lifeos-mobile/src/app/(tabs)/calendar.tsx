@@ -1,14 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  TextInput, Modal, ActivityIndicator, Alert
+  TextInput, Modal, ActivityIndicator, Alert, Platform
 } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { calendarApi } from '../../api/features'
-import { Colors, Spacing, BorderRadius, FontSize, Shadow } from '../../constants/theme'
+import { Spacing, BorderRadius, FontSize, Shadow } from '../../constants/theme'
+import { useTheme, makeStyles } from '../../context/ThemeContext'
 import Toast from 'react-native-toast-message'
-import { router } from 'expo-router'
+import Svg, { Path, Rect, Circle, Line } from 'react-native-svg'
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = [
@@ -18,6 +19,65 @@ const MONTHS = [
 const DAYS_OF_WEEK = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
 const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
+// Custom Dynamic Icon sets replacing raw Emojis
+type IconName = 'plus' | 'trash' | 'clock' | 'map-pin' | 'chevron-left' | 'chevron-right' | 'calendar'
+
+function Icon({ name, color = '#6d4df2', size = 16 }: { name: IconName; color?: string; size?: number }) {
+  switch (name) {
+    case 'plus':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <Line x1={12} y1={5} x2={12} y2={19} />
+          <Line x1={5} y1={12} x2={19} y2={12} />
+        </Svg>
+      )
+    case 'trash':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <Line x1={3} y1={6} x2={21} y2={6} />
+          <Path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          <Line x1={10} y1={11} x2={10} y2={17} />
+          <Line x1={14} y1={11} x2={14} y2={17} />
+        </Svg>
+      )
+    case 'clock':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <Circle cx={12} cy={12} r={10} />
+          <Path d="M12 6v6l4 2" />
+        </Svg>
+      )
+    case 'map-pin':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <Path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+          <Circle cx={12} cy={10} r={3} />
+        </Svg>
+      )
+    case 'calendar':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <Rect x={3} y={4} width={18} height={18} rx={2} ry={2} />
+          <Line x1={16} y1={2} x2={16} y2={6} />
+          <Line x1={8} y1={2} x2={8} y2={6} />
+          <Line x1={3} y1={10} x2={21} y2={10} />
+        </Svg>
+      )
+    case 'chevron-left':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <Path d="M15 18l-6-6 6-6" />
+        </Svg>
+      )
+    case 'chevron-right':
+      return (
+        <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+          <Path d="M9 18l6-6-6-6" />
+        </Svg>
+      )
+  }
+}
+
 const isSameDay = (d1: Date, d2: Date) => {
   return d1.getFullYear() === d2.getFullYear() &&
          d1.getMonth() === d2.getMonth() &&
@@ -26,6 +86,10 @@ const isSameDay = (d1: Date, d2: Date) => {
 
 export default function CalendarScreen() {
   const qc = useQueryClient()
+  const { colors, theme } = useTheme()
+  const styles = useStyles()
+  const isDark = theme === 'dark'
+
   const { data: events = [], isLoading } = useQuery({
     queryKey: ['calendar'],
     queryFn: calendarApi.list,
@@ -53,7 +117,8 @@ export default function CalendarScreen() {
     onError: (e: any) => Toast.show({ type: 'error', text1: e.message || 'Failed to delete' }),
   })
 
-  // Date states
+  // Date and View states
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState(new Date())
   const [modalOpen, setModalOpen] = useState(false)
@@ -73,7 +138,7 @@ export default function CalendarScreen() {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
 
-  // Generate calendar days
+  // Generate calendar days (Month View)
   const year = currentMonth.getFullYear()
   const month = currentMonth.getMonth()
 
@@ -118,12 +183,44 @@ export default function CalendarScreen() {
     gridRows.push(gridDays.slice(i, i + 7))
   }
 
-  const handlePrevMonth = () => {
-    setCurrentMonth(new Date(year, month - 1, 1))
+  // Generate 7 days of the week containing selectedDay (Week View)
+  const getDaysOfWeek = (date: Date) => {
+    const current = new Date(date)
+    const day = current.getDay() // 0 = Sun, 1 = Mon ...
+    const diff = current.getDate() - day // adjust to Sunday
+    const startOfWeek = new Date(current.setDate(diff))
+    
+    const days = []
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(startOfWeek)
+      d.setDate(startOfWeek.getDate() + i)
+      days.push(d)
+    }
+    return days
   }
 
-  const handleNextMonth = () => {
-    setCurrentMonth(new Date(year, month + 1, 1))
+  const weekDaysList = getDaysOfWeek(selectedDay)
+
+  const handlePrev = () => {
+    if (viewMode === 'month') {
+      setCurrentMonth(new Date(year, month - 1, 1))
+    } else {
+      const newDate = new Date(selectedDay)
+      newDate.setDate(selectedDay.getDate() - 7)
+      setSelectedDay(newDate)
+      setCurrentMonth(newDate)
+    }
+  }
+
+  const handleNext = () => {
+    if (viewMode === 'month') {
+      setCurrentMonth(new Date(year, month + 1, 1))
+    } else {
+      const newDate = new Date(selectedDay)
+      newDate.setDate(selectedDay.getDate() + 7)
+      setSelectedDay(newDate)
+      setCurrentMonth(newDate)
+    }
   }
 
   const handleCreate = () => {
@@ -132,7 +229,6 @@ export default function CalendarScreen() {
       return
     }
 
-    // YYYY-MM-DD
     const pad = (num: number) => String(num).padStart(2, '0')
     const dateStr = `${selectedDay.getFullYear()}-${pad(selectedDay.getMonth() + 1)}-${pad(selectedDay.getDate())}`
     const fullStart = `${dateStr}T${startTime}:00Z`
@@ -148,10 +244,18 @@ export default function CalendarScreen() {
   }
 
   const handleDelete = (id: string) => {
-    Alert.alert('Delete Event', 'Are you sure?', [
+    Alert.alert('Delete Event', 'Are you sure you want to remove this event?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => deleteEvent.mutate(id) },
     ])
+  }
+
+  const isEventNow = (item: any) => {
+    if (!item.startTime || !item.endTime) return false
+    const now = new Date()
+    const start = new Date(item.startTime)
+    const end = new Date(item.endTime)
+    return now >= start && now <= end
   }
 
   // Filter events for selected day
@@ -173,12 +277,13 @@ export default function CalendarScreen() {
           <Text style={styles.title}>Calendar</Text>
         </View>
         <TouchableOpacity style={styles.addBtn} onPress={() => setModalOpen(true)}>
-          <Text style={styles.addBtnText}>+ Add</Text>
+          <Icon name="plus" color="#fff" size={14} />
+          <Text style={styles.addBtnText}>Add Event</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Month Navigation */}
+        {/* Month Navigation & View Controller Row */}
         <View style={styles.monthNav}>
           <TouchableOpacity
             style={styles.monthLabelContainer}
@@ -188,105 +293,225 @@ export default function CalendarScreen() {
               setDatePickerOpen(true)
             }}
           >
-            <Text style={styles.monthLabel}>{MONTHS[month]} {year} ▾</Text>
+            <Text style={styles.monthLabel}>
+              {viewMode === 'month' ? `${MONTHS[month]} ${year}` : `${MONTHS[selectedDay.getMonth()]} ${selectedDay.getFullYear()}`} ▾
+            </Text>
           </TouchableOpacity>
           <View style={styles.navButtons}>
-            <TouchableOpacity style={styles.navBtn} onPress={handlePrevMonth}>
-              <Text style={styles.navBtnText}>‹</Text>
+            <TouchableOpacity style={styles.navBtn} onPress={handlePrev}>
+              <Icon name="chevron-left" color={colors.ink[700]} size={16} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.navBtn} onPress={handleNextMonth}>
-              <Text style={styles.navBtnText}>›</Text>
+            <TouchableOpacity style={styles.navBtn} onPress={handleNext}>
+              <Icon name="chevron-right" color={colors.ink[700]} size={16} />
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* View Mode Toggle Option (Month/Week toggle) */}
+        <View style={styles.toggleRow}>
+          <View style={styles.toggleContainer}>
+            <TouchableOpacity
+              style={[styles.toggleBtn, viewMode === 'month' && styles.toggleBtnActive]}
+              onPress={() => setViewMode('month')}
+            >
+              <Text style={[styles.toggleBtnText, viewMode === 'month' && styles.toggleBtnTextActive]}>Month</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.toggleBtn, viewMode === 'week' && styles.toggleBtnActive]}
+              onPress={() => setViewMode('week')}
+            >
+              <Text style={[styles.toggleBtnText, viewMode === 'week' && styles.toggleBtnTextActive]}>Week</Text>
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity
+            style={styles.todayBtn}
+            onPress={() => {
+              setCurrentMonth(new Date())
+              setSelectedDay(new Date())
+            }}
+          >
+            <Text style={styles.todayBtnText}>Today</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Calendar Grid Card */}
         <View style={styles.calendarCard}>
-          {/* Weekday headers */}
-          <View style={styles.weekdaysRow}>
-            {WEEKDAYS.map(w => (
-              <Text key={w} style={styles.weekdayText}>{w}</Text>
-            ))}
-          </View>
+          {viewMode === 'month' ? (
+            <>
+              {/* Weekday headers */}
+              <View style={styles.weekdaysRow}>
+                {WEEKDAYS.map(w => (
+                  <Text key={w} style={styles.weekdayText}>{w}</Text>
+                ))}
+              </View>
 
-          {/* Grid rows */}
-          {gridRows.map((row, rIdx) => (
-            <View key={rIdx} style={styles.gridRow}>
-              {row.map(dayObj => {
-                const isSelected = isSameDay(dayObj.date, selectedDay)
-                const isTodayDate = isSameDay(dayObj.date, new Date())
-                const hasEvent = events.some((e: any) => e.startTime && isSameDay(new Date(e.startTime), dayObj.date))
-                const isPastDay = dayObj.date.getTime() < today.getTime()
+              {/* Grid rows */}
+              {gridRows.map((row, rIdx) => (
+                <View key={rIdx} style={styles.gridRow}>
+                  {row.map(dayObj => {
+                    const isSelected = isSameDay(dayObj.date, selectedDay)
+                    const isTodayDate = isSameDay(dayObj.date, new Date())
+                    const hasEvent = events.some((e: any) => e.startTime && isSameDay(new Date(e.startTime), dayObj.date))
+                    const isPastDay = dayObj.date.getTime() < today.getTime()
 
-                return (
-                  <TouchableOpacity
-                    key={dayObj.date.toISOString()}
-                    style={[
-                      styles.dayCell,
-                      isSelected && styles.daySelected,
-                      !dayObj.isCurrentMonth && styles.dayOtherMonth,
-                    ]}
-                    onPress={() => setSelectedDay(dayObj.date)}
-                  >
-                    <View style={[styles.dayTextContainer, isTodayDate && styles.dayTodayContainer]}>
-                      <Text style={[
-                        styles.dayText,
-                        isTodayDate && styles.dayTextToday,
-                        isSelected && styles.dayTextSelected,
-                        isPastDay && !isSelected && styles.dayTextPast,
-                        !dayObj.isCurrentMonth && styles.dayTextOtherMonth,
-                      ]}>
-                        {dayObj.date.getDate()}
-                      </Text>
-                    </View>
-                    {hasEvent && (
-                      <View style={[styles.eventIndicator, isSelected && styles.eventIndicatorSelected]} />
-                    )}
-                  </TouchableOpacity>
-                )
-              })}
+                    return (
+                      <TouchableOpacity
+                        key={dayObj.date.toISOString()}
+                        style={[
+                          styles.dayCell,
+                          isSelected && styles.daySelected,
+                          !dayObj.isCurrentMonth && styles.dayOtherMonth,
+                        ]}
+                        onPress={() => {
+                          setSelectedDay(dayObj.date)
+                          if (!dayObj.isCurrentMonth) {
+                            setCurrentMonth(dayObj.date)
+                          }
+                        }}
+                      >
+                        <View style={[styles.dayTextContainer, isTodayDate && styles.dayTodayContainer]}>
+                          <Text style={[
+                            styles.dayText,
+                            isTodayDate && styles.dayTextToday,
+                            isSelected && styles.dayTextSelected,
+                            isPastDay && !isSelected && styles.dayTextPast,
+                            !dayObj.isCurrentMonth && styles.dayTextOtherMonth,
+                          ]}>
+                            {dayObj.date.getDate()}
+                          </Text>
+                        </View>
+                        {hasEvent && (
+                          <View style={[styles.eventIndicator, isSelected && styles.eventIndicatorSelected]} />
+                        )}
+                      </TouchableOpacity>
+                    )
+                  })}
+                </View>
+              ))}
+            </>
+          ) : (
+            /* Advanced Week Strip View */
+            <View style={styles.weekStripContainer}>
+              <View style={styles.weekdaysRow}>
+                {WEEKDAYS.map(w => (
+                  <Text key={w} style={styles.weekdayText}>{w}</Text>
+                ))}
+              </View>
+              <View style={styles.gridRow}>
+                {weekDaysList.map(weekDay => {
+                  const isSelected = isSameDay(weekDay, selectedDay)
+                  const isTodayDate = isSameDay(weekDay, new Date())
+                  const hasEvent = events.some((e: any) => e.startTime && isSameDay(new Date(e.startTime), weekDay))
+                  const isPastDay = weekDay.getTime() < today.getTime()
+
+                  return (
+                    <TouchableOpacity
+                      key={weekDay.toISOString()}
+                      style={[
+                        styles.dayCell,
+                        isSelected && styles.daySelected,
+                      ]}
+                      onPress={() => setSelectedDay(weekDay)}
+                    >
+                      <View style={[styles.dayTextContainer, isTodayDate && styles.dayTodayContainer]}>
+                        <Text style={[
+                          styles.dayText,
+                          isTodayDate && styles.dayTextToday,
+                          isSelected && styles.dayTextSelected,
+                          isPastDay && !isSelected && styles.dayTextPast,
+                        ]}>
+                          {weekDay.getDate()}
+                        </Text>
+                      </View>
+                      {hasEvent && (
+                        <View style={[styles.eventIndicator, isSelected && styles.eventIndicatorSelected]} />
+                      )}
+                    </TouchableOpacity>
+                  )
+                })}
+              </View>
             </View>
-          ))}
+          )}
         </View>
 
-        {/* Day Events Header */}
+        {/* Selected Day Header */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>{formatSelectedDate(selectedDay)}</Text>
         </View>
 
-        {/* Events list */}
+        {/* Timeline Events list */}
         {isLoading ? (
-          <ActivityIndicator color={Colors.brand[500]} style={{ marginTop: 20 }} />
+          <ActivityIndicator color={colors.brand[500]} style={{ marginTop: 20 }} />
         ) : (
-          <View style={styles.eventsList}>
-            {selectedDayEvents.map((item: any) => (
-              <View key={item.id} style={styles.eventCard}>
-                <View style={styles.eventLeft}>
-                  <View style={styles.timeBlock}>
-                    <Text style={styles.timeText}>
+          <View style={styles.timelineContainer}>
+            {selectedDayEvents.map((item: any, idx: number) => {
+              const isNow = isEventNow(item)
+              return (
+                <View key={item.id} style={styles.timelineRow}>
+                  {/* Left Side: Time indicator */}
+                  <View style={styles.timelineTimeBlock}>
+                    <Text style={[styles.timelineTimeText, isNow && styles.timelineTimeTextNow]}>
                       {item.startTime ? new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '—'}
                     </Text>
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.eventTitle}>{item.title}</Text>
+
+                  {/* Middle Line: Timeline Node dots */}
+                  <View style={styles.timelineNodeBlock}>
+                    <View style={[styles.timelineDot, isNow && styles.timelineDotNow]} />
+                    {idx < selectedDayEvents.length - 1 && <View style={styles.timelineLine} />}
+                  </View>
+
+                  {/* Right Side: Beautiful Card item */}
+                  <View style={[styles.timelineCard, isNow && styles.timelineCardNow]}>
+                    <View style={styles.cardHeader}>
+                      <Text style={[styles.eventTitle, isNow && styles.eventTitleNow]}>{item.title}</Text>
+                      {isNow && (
+                        <View style={styles.nowBadge}>
+                          <Text style={styles.nowBadgeText}>NOW</Text>
+                        </View>
+                      )}
+                    </View>
+                    
                     {item.description ? <Text style={styles.eventDesc}>{item.description}</Text> : null}
-                    {item.location ? <Text style={styles.eventLoc}>📍 {item.location}</Text> : null}
+                    
+                    {item.location || item.startTime ? (
+                      <View style={styles.eventMetaRow}>
+                        {item.startTime && (
+                          <View style={styles.metaItem}>
+                            <Icon name="clock" color={isDark ? colors.brand[300] : colors.brand[500]} size={12} />
+                            <Text style={styles.metaText}>
+                              {new Date(item.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - {item.endTime ? new Date(item.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'End'}
+                            </Text>
+                          </View>
+                        )}
+                        {item.location && (
+                          <View style={styles.metaItem}>
+                            <Icon name="map-pin" color={colors.ink[400]} size={12} />
+                            <Text style={styles.metaText} numberOfLines={1}>{item.location}</Text>
+                          </View>
+                        )}
+                      </View>
+                    ) : null}
+
+                    <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item.id)}>
+                      <Icon name="trash" color={colors.status.error} size={14} />
+                    </TouchableOpacity>
                   </View>
                 </View>
-                <TouchableOpacity onPress={() => handleDelete(item.id)}>
-                  <Text style={styles.deleteText}>🗑️</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+              )
+            })}
 
             {selectedDayEvents.length === 0 && (
-              <Text style={styles.empty}>No events scheduled.</Text>
+              <View style={styles.emptyCard}>
+                <Icon name="calendar" color={colors.ink[300]} size={36} />
+                <Text style={styles.empty}>No events scheduled for this day.</Text>
+              </View>
             )}
           </View>
         )}
       </ScrollView>
 
-      {/* Date Picker Modal for Direct Month/Year Travel */}
+      {/* Date Picker Modal for Direct Jump */}
       <Modal visible={datePickerOpen} transparent animationType="fade" onRequestClose={() => setDatePickerOpen(false)}>
         <View style={styles.pickerOverlay}>
           <View style={styles.pickerContent}>
@@ -339,7 +564,7 @@ export default function CalendarScreen() {
         </View>
       </Modal>
 
-      {/* Create Modal */}
+      {/* Create Event Modal */}
       <Modal visible={modalOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setModalOpen(false)}>
         <View style={styles.modal}>
           <View style={styles.modalHeader}>
@@ -350,29 +575,60 @@ export default function CalendarScreen() {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 40 }}>
-            <Text style={styles.label}>Selected Date</Text>
+            <Text style={styles.modalLabel}>Selected Date</Text>
             <View style={styles.dateDisplay}>
               <Text style={styles.dateDisplayText}>{formatSelectedDate(selectedDay)}</Text>
             </View>
 
-            <Text style={styles.label}>Title *</Text>
-            <TextInput style={styles.input} placeholder="Birthday, Anniversary, Meeting..." value={title} onChangeText={setTitle} />
+            <Text style={styles.modalLabel}>Title *</Text>
+            <TextInput
+              style={styles.inputField}
+              placeholder="Birthday, anniversary, meeting..."
+              placeholderTextColor={colors.ink[400]}
+              value={title}
+              onChangeText={setTitle}
+            />
 
-            <Text style={styles.label}>Description</Text>
-            <TextInput style={[styles.input, { height: 72 }]} placeholder="Optional description..." multiline value={description} onChangeText={setDescription} />
+            <Text style={styles.modalLabel}>Description</Text>
+            <TextInput
+              style={[styles.inputField, { height: 80, textAlignVertical: 'top' }]}
+              placeholder="Add details, notes, description..."
+              placeholderTextColor={colors.ink[400]}
+              multiline
+              value={description}
+              onChangeText={setDescription}
+            />
 
-            <Text style={styles.label}>Location</Text>
-            <TextInput style={styles.input} placeholder="Optional location..." value={location} onChangeText={setLocation} />
+            <Text style={styles.modalLabel}>Location</Text>
+            <TextInput
+              style={styles.inputField}
+              placeholder="Office, home, coffee shop..."
+              placeholderTextColor={colors.ink[400]}
+              value={location}
+              onChangeText={setLocation}
+            />
 
             <View style={styles.timeRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Start Time (HH:MM)</Text>
-                <TextInput style={styles.input} placeholder="09:00" value={startTime} onChangeText={setStartTime} />
+                <Text style={styles.modalLabel}>Start Time</Text>
+                <TextInput
+                  style={styles.inputField}
+                  placeholder="09:00"
+                  placeholderTextColor={colors.ink[400]}
+                  value={startTime}
+                  onChangeText={setStartTime}
+                />
               </View>
               <View style={{ width: 16 }} />
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>End Time (HH:MM)</Text>
-                <TextInput style={styles.input} placeholder="10:00" value={endTime} onChangeText={setEndTime} />
+                <Text style={styles.modalLabel}>End Time</Text>
+                <TextInput
+                  style={styles.inputField}
+                  placeholder="10:00"
+                  placeholderTextColor={colors.ink[400]}
+                  value={endTime}
+                  onChangeText={setEndTime}
+                />
               </View>
             </View>
 
@@ -386,53 +642,114 @@ export default function CalendarScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.surface.soft },
+const useStyles = makeStyles((colors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.surface.soft },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: Spacing.lg,
-    paddingBottom: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.lg,
+    paddingBottom: Spacing.sm,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  backArrow: { fontSize: 22, color: Colors.ink[900], paddingRight: 4 },
-  title: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.ink[900] },
+  headerLeft: { flexDirection: 'row', alignItems: 'center' },
+  title: { fontSize: FontSize.xl, fontWeight: '800', color: colors.ink[900], fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium' },
   addBtn: {
-    backgroundColor: Colors.brand[500],
+    backgroundColor: colors.brand[500],
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 8,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    ...Shadow.sm,
   },
-  addBtnText: { color: '#fff', fontWeight: '700', fontSize: FontSize.sm },
-  scrollContent: { padding: Spacing.lg, paddingBottom: 40 },
+  addBtnText: { color: '#fff', fontWeight: '700', fontSize: 13, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium' },
+  scrollContent: { paddingHorizontal: Spacing.lg, paddingBottom: 60 },
   monthNav: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
   },
   monthLabelContainer: {
     paddingVertical: 4,
   },
-  monthLabel: { fontSize: FontSize.lg, fontWeight: '800', color: Colors.ink[900] },
+  monthLabel: { fontSize: FontSize.lg, fontWeight: '800', color: colors.ink[900], fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium' },
   navButtons: { flexDirection: 'row', gap: Spacing.xs },
   navBtn: {
     width: 36,
     height: 36,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surface.white,
+    backgroundColor: colors.surface.white,
+    borderWidth: 1,
+    borderColor: colors.surface.border,
     alignItems: 'center',
     justifyContent: 'center',
     ...Shadow.sm,
   },
-  navBtnText: { fontSize: FontSize.lg, color: Colors.ink[700], fontWeight: '600' },
+
+  // Toggle View Row styles
+  toggleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.surface.white,
+    borderRadius: BorderRadius.md,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: colors.surface.border,
+  },
+  toggleBtn: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.sm,
+  },
+  toggleBtnActive: {
+    backgroundColor: colors.brand[50],
+  },
+  toggleBtnText: {
+    fontSize: FontSize.xs,
+    fontWeight: '600',
+    color: colors.ink[500],
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+  },
+  toggleBtnTextActive: {
+    color: colors.brand[600],
+    fontWeight: '700',
+  },
+  todayBtn: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+    borderRadius: BorderRadius.md,
+    backgroundColor: colors.surface.white,
+    borderWidth: 1,
+    borderColor: colors.surface.border,
+    ...Shadow.sm,
+  },
+  todayBtnText: {
+    fontSize: FontSize.xs,
+    fontWeight: '700',
+    color: colors.ink[700],
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  },
+
   calendarCard: {
-    backgroundColor: Colors.surface.white,
+    backgroundColor: colors.surface.white,
     borderRadius: BorderRadius.xl,
     padding: Spacing.md,
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.surface.border,
     ...Shadow.sm,
+  },
+  weekStripContainer: {
+    paddingVertical: 4,
   },
   weekdaysRow: {
     flexDirection: 'row',
@@ -440,16 +757,17 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   weekdayText: {
-    fontSize: FontSize.xs,
+    fontSize: 11,
     fontWeight: '700',
-    color: Colors.ink[400],
+    color: colors.ink[400],
     width: '14.2%',
     textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   gridRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   dayCell: {
     width: '13%',
@@ -462,52 +780,55 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   daySelected: {
-    borderColor: Colors.brand[500],
-    backgroundColor: Colors.brand[50] + '30',
+    backgroundColor: colors.brand[500],
+    borderRadius: 9999,
   },
   dayOtherMonth: {
     opacity: 0.3,
   },
   dayTextContainer: {
-    width: 26,
-    height: 26,
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: BorderRadius.full,
   },
   dayTodayContainer: {
-    backgroundColor: Colors.brand[500],
+    backgroundColor: colors.brand[400],
+    borderRadius: 9999,
   },
   dayText: {
     fontSize: FontSize.sm,
     fontWeight: '700',
-    color: Colors.ink[900],
+    color: colors.ink[900],
     textAlign: 'center',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   dayTextToday: {
     color: '#fff',
+    fontWeight: '800',
   },
   dayTextSelected: {
-    color: Colors.brand[500],
+    color: '#fff',
     fontWeight: '800',
   },
   dayTextPast: {
-    color: Colors.ink[300],
+    color: colors.ink[300],
     fontWeight: '500',
   },
   dayTextOtherMonth: {
-    color: Colors.ink[400],
+    color: colors.ink[400],
   },
   eventIndicator: {
     width: 4,
     height: 4,
     borderRadius: BorderRadius.full,
-    backgroundColor: Colors.brand[500],
+    backgroundColor: colors.brand[500],
     position: 'absolute',
-    bottom: 4,
+    bottom: 3,
   },
   eventIndicatorSelected: {
-    backgroundColor: Colors.brand[500],
+    backgroundColor: colors.brand[600],
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -519,71 +840,166 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: FontSize.md,
     fontWeight: '800',
-    color: Colors.ink[900],
+    color: colors.ink[900],
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
-  eventsList: {
+
+  // Advanced Timeline Agenda list styles
+  timelineContainer: {
     marginBottom: Spacing.xl,
+    paddingLeft: 4,
   },
-  eventCard: {
-    backgroundColor: Colors.surface.white,
+  timelineRow: {
+    flexDirection: 'row',
+    marginBottom: 0,
+    minHeight: 88,
+  },
+  timelineTimeBlock: {
+    width: 65,
+    paddingTop: 12,
+    alignItems: 'flex-start',
+  },
+  timelineTimeText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.ink[500],
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  },
+  timelineTimeTextNow: {
+    color: colors.brand[600],
+    fontWeight: '800',
+  },
+  timelineNodeBlock: {
+    width: 24,
+    alignItems: 'center',
+  },
+  timelineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: BorderRadius.full,
+    backgroundColor: colors.ink[200],
+    marginTop: 15,
+    borderWidth: 2,
+    borderColor: colors.surface.soft,
+    zIndex: 2,
+  },
+  timelineDotNow: {
+    backgroundColor: colors.brand[500],
+    width: 12,
+    height: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+    transform: [{ scale: 1.2 }],
+    shadowColor: colors.brand[500],
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 4,
+  },
+  timelineLine: {
+    position: 'absolute',
+    top: 25,
+    bottom: -15,
+    width: 2,
+    backgroundColor: colors.surface.border,
+    zIndex: 1,
+  },
+  timelineCard: {
+    flex: 1,
+    backgroundColor: colors.surface.white,
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: colors.surface.border,
+    position: 'relative',
     ...Shadow.sm,
   },
-  eventLeft: {
+  timelineCardNow: {
+    borderColor: colors.brand[300],
+    backgroundColor: colors.brand[50] + '12',
+    borderWidth: 1.5,
+  },
+  cardHeader: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: Spacing.sm,
-    flex: 1,
-  },
-  timeBlock: {
-    backgroundColor: Colors.brand[50],
-    borderRadius: BorderRadius.md,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minWidth: 64,
-  },
-  timeText: {
-    color: Colors.brand[700],
-    fontWeight: '700',
-    fontSize: FontSize.xs,
+    marginBottom: 4,
   },
   eventTitle: {
     fontSize: FontSize.md,
     fontWeight: '700',
-    color: Colors.ink[900],
+    color: colors.ink[900],
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+  },
+  eventTitleNow: {
+    color: colors.brand[600],
+  },
+  nowBadge: {
+    backgroundColor: colors.brand[500],
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  nowBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '800',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   eventDesc: {
     fontSize: FontSize.xs,
-    color: Colors.ink[500],
+    color: colors.ink[500],
+    lineHeight: 18,
     marginTop: 2,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
-  eventLoc: {
-    fontSize: FontSize.xs,
-    color: Colors.ink[400],
-    marginTop: 4,
-    fontWeight: '500',
+  eventMetaRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: 10,
+    flexWrap: 'wrap',
   },
-  deleteText: {
-    fontSize: 16,
-    padding: 4,
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 11,
+    color: colors.ink[500],
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    maxWidth: 120,
+  },
+  deleteBtn: {
+    position: 'absolute',
+    top: Spacing.md,
+    right: Spacing.md,
+    padding: 2,
+  },
+  emptyCard: {
+    backgroundColor: colors.surface.white,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: colors.surface.border,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    ...Shadow.sm,
   },
   empty: {
     textAlign: 'center',
-    color: Colors.ink[400],
-    marginTop: 20,
+    color: colors.ink[400],
     fontSize: FontSize.sm,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
+
+  // Modal styles
   modal: {
     flex: 1,
     padding: Spacing.xl,
-    backgroundColor: Colors.surface.soft,
+    backgroundColor: colors.surface.soft,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -594,23 +1010,25 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: FontSize.xl,
     fontWeight: '800',
-    color: Colors.ink[900],
+    color: colors.ink[900],
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   modalClose: {
     fontSize: 20,
-    color: Colors.ink[500],
+    color: colors.ink[500],
   },
-  label: {
+  modalLabel: {
     fontSize: FontSize.sm,
     fontWeight: '600',
-    color: Colors.ink[700],
+    color: colors.ink[700],
     marginBottom: 6,
     marginTop: Spacing.sm,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   dateDisplay: {
-    backgroundColor: Colors.surface.white,
+    backgroundColor: colors.surface.white,
     borderWidth: 1.5,
-    borderColor: Colors.ink[200],
+    borderColor: colors.surface.border,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 12,
@@ -618,37 +1036,42 @@ const styles = StyleSheet.create({
   },
   dateDisplayText: {
     fontSize: FontSize.md,
-    color: Colors.ink[700],
+    color: colors.ink[700],
     fontWeight: '700',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
-  input: {
+  inputField: {
     borderWidth: 1.5,
-    borderColor: Colors.ink[200],
+    borderColor: colors.surface.border,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: 12,
     fontSize: FontSize.md,
-    color: Colors.ink[900],
-    backgroundColor: Colors.surface.white,
+    color: colors.ink[900],
+    backgroundColor: colors.surface.white,
     marginBottom: Spacing.sm,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   timeRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
   },
   submitBtn: {
-    backgroundColor: Colors.brand[500],
+    backgroundColor: colors.brand[500],
     borderRadius: BorderRadius.md,
     paddingVertical: 14,
     alignItems: 'center',
     marginTop: Spacing.xl,
+    ...Shadow.sm,
   },
   submitText: {
     color: '#fff',
     fontWeight: '700',
     fontSize: FontSize.md,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
-  // Year/Month Picker Styles
+
+  // Picker modal styles
   pickerOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.4)',
@@ -657,7 +1080,7 @@ const styles = StyleSheet.create({
     padding: Spacing.xl,
   },
   pickerContent: {
-    backgroundColor: Colors.surface.white,
+    backgroundColor: colors.surface.white,
     borderRadius: BorderRadius.xl,
     padding: Spacing.lg,
     width: '100%',
@@ -673,18 +1096,19 @@ const styles = StyleSheet.create({
   pickerTitle: {
     fontSize: FontSize.md,
     fontWeight: '800',
-    color: Colors.ink[900],
+    color: colors.ink[900],
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   pickerClose: {
     fontSize: 18,
-    color: Colors.ink[500],
+    color: colors.ink[500],
   },
   yearRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginVertical: Spacing.sm,
-    backgroundColor: Colors.surface.soft,
+    backgroundColor: colors.surface.soft,
     borderRadius: BorderRadius.md,
     padding: Spacing.xs,
   },
@@ -695,12 +1119,13 @@ const styles = StyleSheet.create({
   yearBtnText: {
     fontSize: FontSize.lg,
     fontWeight: '700',
-    color: Colors.brand[500],
+    color: colors.brand[500],
   },
   yearText: {
     fontSize: FontSize.md,
     fontWeight: '800',
-    color: Colors.ink[900],
+    color: colors.ink[900],
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   monthsGrid: {
     flexDirection: 'row',
@@ -713,32 +1138,35 @@ const styles = StyleSheet.create({
     width: '30%',
     paddingVertical: 10,
     borderRadius: BorderRadius.md,
-    backgroundColor: Colors.surface.soft,
+    backgroundColor: colors.surface.soft,
     alignItems: 'center',
     marginBottom: 4,
   },
   monthChipActive: {
-    backgroundColor: Colors.brand[500],
+    backgroundColor: colors.brand[500],
   },
   monthChipText: {
     fontSize: FontSize.xs,
     fontWeight: '600',
-    color: Colors.ink[700],
+    color: colors.ink[700],
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   monthChipTextActive: {
     color: '#fff',
     fontWeight: '700',
   },
   applyBtn: {
-    backgroundColor: Colors.brand[500],
+    backgroundColor: colors.brand[500],
     borderRadius: BorderRadius.md,
     paddingVertical: 12,
     alignItems: 'center',
     marginTop: Spacing.xs,
+    ...Shadow.sm,
   },
   applyBtnText: {
     color: '#fff',
     fontWeight: '700',
     fontSize: FontSize.md,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
-})
+}))

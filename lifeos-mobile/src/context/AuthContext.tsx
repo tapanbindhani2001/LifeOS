@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { authApi, User, LoginRequest, RegisterRequest } from '../api/auth'
+import { authApi, User, LoginRequest } from '../api/auth'
 import { TOKEN_KEY } from '../api/client'
 
 interface AuthContextValue {
@@ -31,7 +31,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    refreshProfile().finally(() => setIsLoading(false))
+    let active = true
+    const init = () => {
+      refreshProfile().finally(() => {
+        if (active) setIsLoading(false)
+      })
+    }
+    const timer = setTimeout(init, 0)
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
   }, [refreshProfile])
 
   const login = async (payload: LoginRequest) => {

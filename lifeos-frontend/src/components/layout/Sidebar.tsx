@@ -22,6 +22,7 @@ import {
 import clsx from 'clsx'
 import { useAuth } from '@/context/AuthContext'
 import { useSubscription } from '@/hooks/useSubscription'
+import { Logo } from '@/components/ui/Logo'
 
 const NAV_ITEMS = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -47,9 +48,7 @@ export function Sidebar() {
     <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-surface-border bg-white">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-6 py-5">
-        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-500">
-          <div className="h-3.5 w-3.5 rounded-full bg-white" />
-        </div>
+        <Logo size="sm" />
         <span className="font-display text-lg font-bold text-ink-900">LifeOS</span>
       </div>
 

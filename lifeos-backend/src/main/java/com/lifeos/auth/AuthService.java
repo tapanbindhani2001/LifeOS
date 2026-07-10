@@ -3,6 +3,8 @@ package com.lifeos.auth;
 import com.lifeos.auth.dto.AuthResponse;
 import com.lifeos.auth.dto.LoginRequest;
 import com.lifeos.auth.dto.RegisterRequest;
+import com.lifeos.auth.dto.ForgotPasswordRequest;
+import com.lifeos.auth.dto.ResetPasswordRequest;
 import com.lifeos.user.dto.UserResponse;
 import com.lifeos.common.exception.BadRequestException;
 import com.lifeos.common.security.JwtService;
@@ -17,6 +19,7 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.lifeos.common.email.EmailService;
 
 /**
  * Service class that handles business logic for user registration and authentication.
@@ -28,6 +31,22 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final EmailService emailService;
+
+    private static class ResetCodeInfo {
+        private final String code;
+        private final java.time.Instant expiresAt;
+
+        public ResetCodeInfo(String code, java.time.Instant expiresAt) {
+            this.code = code;
+            this.expiresAt = expiresAt;
+        }
+
+        public String getCode() { return code; }
+        public java.time.Instant getExpiresAt() { return expiresAt; }
+    }
+
+    private final java.util.Map<String, ResetCodeInfo> resetCodeMap = new java.util.concurrent.ConcurrentHashMap<>();
 
     /**
      * Constructs AuthService using constructor injection.
@@ -41,12 +60,14 @@ public class AuthService {
             UserRepository userRepository,
             PasswordEncoder passwordEncoder,
             JwtService jwtService,
-            AuthenticationManager authenticationManager
+            AuthenticationManager authenticationManager,
+            EmailService emailService
     ) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
+        this.emailService = emailService;
     }
 
     /**
@@ -114,5 +135,52 @@ public class AuthService {
                 .fullName(user.getFullName())
                 .role(user.getRole())
                 .build();
+    }
+
+    /**
+     * Generates a 6-digit password reset OTP code and stores it in memory.
+     */
+    @Transactional
+    public java.util.Map<String, String> forgotPassword(ForgotPasswordRequest request) {
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new BadRequestException("No account registered with this email address"));
+
+        String code = String.format("%06d", new java.util.Random().nextInt(1000000));
+        resetCodeMap.put(request.getEmail(), new ResetCodeInfo(code, java.time.Instant.now().plus(java.time.Duration.ofMinutes(5))));
+
+        // Send OTP email
+        emailService.sendResetPasswordOtp(request.getEmail(), user.getFullName(), code);
+
+        return java.util.Map.of(
+            "message", "Reset code generated and sent successfully"
+        );
+    }
+
+    /**
+     * Verifies the 6-digit OTP code and updates the user's password.
+     */
+    @Transactional
+    public void resetPassword(ResetPasswordRequest request) {
+        ResetCodeInfo codeInfo = resetCodeMap.get(request.getEmail());
+        if (codeInfo == null) {
+            throw new BadRequestException("No reset request found for this email address");
+        }
+
+        if (!codeInfo.getCode().equals(request.getCode())) {
+            throw new BadRequestException("Invalid reset code");
+        }
+
+        if (codeInfo.getExpiresAt().isBefore(java.time.Instant.now())) {
+            resetCodeMap.remove(request.getEmail());
+            throw new BadRequestException("Reset code has expired");
+        }
+
+        User user = userRepository.findByEmail(request.getEmail())
+                .orElseThrow(() -> new BadRequestException("User not found with this email"));
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        resetCodeMap.remove(request.getEmail());
     }
 }

@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, FlatList } from 'react-native'
+import { useState, useMemo } from 'react'
+import { View, Text, StyleSheet, TouchableOpacity, FlatList, Platform } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Colors, Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
+import { Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
+import { useTheme, makeStyles } from '../context/ThemeContext'
 import { router } from 'expo-router'
 
 interface HistoryItem {
@@ -11,25 +12,27 @@ interface HistoryItem {
 }
 
 export default function CalculatorScreen() {
+  const styles = useStyles()
+  const { colors, theme } = useTheme()
+  const isDark = theme === 'dark'
   const [expression, setExpression] = useState('')
-  const [result, setResult] = useState('')
   const [scientificMode, setScientificMode] = useState(false)
   const [history, setHistory] = useState<HistoryItem[]>([])
 
-  // Real-time calculation preview
-  useEffect(() => {
-    if (!expression.trim()) {
-      setResult('')
-      return
+  // Real-time calculation preview via useMemo (prevents state updates during render)
+  const result = useMemo(() => {
+    let cleanExpression = expression.trim()
+    if (!cleanExpression) return ''
+
+    // Strips trailing operators or parentheses to calculate the running subtotal
+    while (cleanExpression && ['+', '-', '×', '÷', '^', '(', ',', '%', '*', '/'].includes(cleanExpression.slice(-1))) {
+      cleanExpression = cleanExpression.slice(0, -1).trim()
     }
 
-    const lastChar = expression.trim().slice(-1)
-    if (['+', '-', '×', '÷', '^', '(', ','].includes(lastChar)) {
-      return
-    }
+    if (!cleanExpression) return ''
 
     try {
-      let parsedExpr = expression
+      const parsedExpr = cleanExpression
         .replace(/π/g, 'Math.PI')
         .replace(/e/g, 'Math.E')
         .replace(/sin\(/g, 'Math.sin(')
@@ -49,22 +52,22 @@ export default function CalculatorScreen() {
       if (!isSafe) {
         const safeRegex = /^[0-9+\-*/().\s]*$/
         if (!safeRegex.test(parsedExpr.replace(/Math\.(PI|E|sin|cos|tan|log10|log|sqrt|pow)/g, ''))) {
-          return
+          return ''
         }
       }
 
       const evalFn = new Function(`return (${parsedExpr})`)
       const evalResult = evalFn()
 
-      if (evalResult !== undefined && !Number.isNaN(evalResult)) {
-        const formattedResult = Number(evalResult).toLocaleString('en-US', {
+      if (evalResult !== undefined && !isNaN(evalResult)) {
+        return Number(evalResult).toLocaleString('en-US', {
           maximumFractionDigits: 6,
         })
-        setResult(formattedResult)
       }
     } catch {
       // Silently ignore incomplete syntax
     }
+    return ''
   }, [expression])
 
   const handleInput = (val: string) => {
@@ -89,7 +92,6 @@ export default function CalculatorScreen() {
 
   const handleClear = () => {
     setExpression('')
-    setResult('')
   }
 
   const handleBackspace = () => {
@@ -116,7 +118,6 @@ export default function CalculatorScreen() {
     }
     setHistory((prev) => [newHistoryItem, ...prev].slice(0, 20))
     setExpression(result.replace(/,/g, ''))
-    setResult('')
   }
 
   return (
@@ -143,7 +144,7 @@ export default function CalculatorScreen() {
         <Text style={styles.resultText}>{result ? `= ${result}` : ''}</Text>
       </View>
 
-      {/* Split keypad & history */}
+      {/* keypad & history */}
       <View style={styles.body}>
         <View style={styles.keypad}>
           {scientificMode && (
@@ -152,6 +153,7 @@ export default function CalculatorScreen() {
               <TouchableOpacity style={styles.sciBtn} onPress={() => handleFunction('cos')}><Text style={styles.sciText}>cos</Text></TouchableOpacity>
               <TouchableOpacity style={styles.sciBtn} onPress={() => handleFunction('tan')}><Text style={styles.sciText}>tan</Text></TouchableOpacity>
               <TouchableOpacity style={styles.sciBtn} onPress={() => handleFunction('sqrt')}><Text style={styles.sciText}>√</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.sciBtn} onPress={() => handleInput('^')}><Text style={styles.sciText}>^</Text></TouchableOpacity>
             </View>
           )}
 
@@ -159,8 +161,9 @@ export default function CalculatorScreen() {
             <View style={styles.row}>
               <TouchableOpacity style={styles.sciBtn} onPress={() => handleConstant('pi')}><Text style={styles.sciText}>π</Text></TouchableOpacity>
               <TouchableOpacity style={styles.sciBtn} onPress={() => handleConstant('e')}><Text style={styles.sciText}>e</Text></TouchableOpacity>
-              <TouchableOpacity style={styles.sciBtn} onPress={() => handleInput('^')}><Text style={styles.sciText}>x^y</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.sciBtn} onPress={() => handleFunction('log')}><Text style={styles.sciText}>log</Text></TouchableOpacity>
               <TouchableOpacity style={styles.sciBtn} onPress={() => handleInput('(')}><Text style={styles.sciText}>(</Text></TouchableOpacity>
+              <TouchableOpacity style={styles.sciBtn} onPress={() => handleInput(')')}><Text style={styles.sciText}>)</Text></TouchableOpacity>
             </View>
           )}
 
@@ -192,8 +195,10 @@ export default function CalculatorScreen() {
             <TouchableOpacity style={[styles.btn, styles.opBtn]} onPress={() => handleInput('+')}><Text style={styles.opText}>+</Text></TouchableOpacity>
           </View>
 
+          {/* Upgraded bottom row featuring the 00 button */}
           <View style={styles.row}>
-            <TouchableOpacity style={[styles.btn, { flex: 2 }]} onPress={() => handleInput('0')}><Text style={[styles.btnText, { textAlign: 'left', paddingLeft: 24 }]}>0</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.btn} onPress={() => handleInput('0')}><Text style={styles.btnText}>0</Text></TouchableOpacity>
+            <TouchableOpacity style={styles.btn} onPress={() => handleInput('00')}><Text style={styles.btnText}>00</Text></TouchableOpacity>
             <TouchableOpacity style={styles.btn} onPress={() => handleInput('.')}><Text style={styles.btnText}>.</Text></TouchableOpacity>
             <TouchableOpacity style={[styles.btn, styles.evalBtn]} onPress={handleEvaluate}><Text style={styles.evalText}>=</Text></TouchableOpacity>
           </View>
@@ -209,7 +214,7 @@ export default function CalculatorScreen() {
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.historyCard}
-                onPress={() => { setExpression(item.expression); setResult(item.result) }}
+                onPress={() => { setExpression(item.expression) }}
               >
                 <Text style={styles.historyExpr} numberOfLines={1}>{item.expression}</Text>
                 <Text style={styles.historyResult}>= {item.result}</Text>
@@ -223,34 +228,34 @@ export default function CalculatorScreen() {
   )
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: Colors.surface.soft },
+const useStyles = makeStyles((colors) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: colors.surface.soft },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.lg, paddingBottom: 0 },
   headerLeft: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  backArrow: { fontSize: 22, color: Colors.ink[900], paddingRight: 4 },
-  title: { fontSize: FontSize.xl, fontWeight: '800', color: Colors.ink[900] },
-  toggleBtn: { backgroundColor: Colors.brand[50], paddingHorizontal: 12, paddingVertical: 6, borderRadius: BorderRadius.sm },
-  toggleText: { color: Colors.brand[600], fontSize: FontSize.xs, fontWeight: '700' },
+  backArrow: { fontSize: 22, color: colors.ink[900], paddingRight: 4, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium' },
+  title: { fontSize: FontSize.xl, fontWeight: '800', color: colors.ink[900], fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium' },
+  toggleBtn: { backgroundColor: colors.brand[50], paddingHorizontal: 12, paddingVertical: 6, borderRadius: BorderRadius.sm },
+  toggleText: { color: colors.brand[600], fontSize: FontSize.xs, fontWeight: '700', fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium' },
   screen: { flex: 1.3, justifyContent: 'flex-end', alignItems: 'flex-end', padding: Spacing.xl },
-  exprText: { fontSize: FontSize.xxl, fontFamily: 'monospace', color: Colors.ink[500] },
-  resultText: { fontSize: 36, fontWeight: '800', color: Colors.ink[900], marginTop: 8 },
+  exprText: { fontSize: FontSize.xxl, fontFamily: 'monospace', color: colors.ink[500] },
+  resultText: { fontSize: 36, fontWeight: '800', color: colors.ink[900], marginTop: 8, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium' },
   body: { flex: 4, paddingHorizontal: Spacing.md, gap: Spacing.md },
   keypad: { gap: 8 },
   row: { flexDirection: 'row', gap: 8 },
-  btn: { flex: 1, height: 56, borderRadius: BorderRadius.md, backgroundColor: Colors.surface.white, alignItems: 'center', justifyContent: 'center', ...Shadow.sm },
-  btnText: { fontSize: FontSize.xl, color: Colors.ink[900], fontWeight: '600', width: '100%', textAlign: 'center' },
-  clearBtn: { backgroundColor: '#fef2f2' },
-  clearText: { fontSize: FontSize.xl, color: Colors.status.error, fontWeight: '700' },
-  opBtn: { backgroundColor: Colors.brand[50] },
-  opText: { fontSize: FontSize.xl, color: Colors.brand[700], fontWeight: '700' },
-  evalBtn: { backgroundColor: Colors.brand[500] },
-  evalText: { fontSize: FontSize.xl, color: '#fff', fontWeight: '800' },
-  sciBtn: { flex: 1, height: 40, borderRadius: BorderRadius.sm, backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center' },
-  sciText: { fontSize: FontSize.sm, color: Colors.brand[600], fontWeight: '700' },
-  historySection: { flex: 1, borderTopWidth: 1, borderTopColor: Colors.surface.border, paddingTop: Spacing.sm },
-  historyTitle: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.ink[500], marginBottom: Spacing.xs },
-  historyCard: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: Colors.surface.border + '50' },
-  historyExpr: { fontSize: FontSize.xs, color: Colors.ink[400], fontFamily: 'monospace' },
-  historyResult: { fontSize: FontSize.sm, color: Colors.ink[900], fontWeight: '700', marginTop: 2, fontFamily: 'monospace' },
-  emptyHistory: { fontSize: FontSize.xs, color: Colors.ink[300], fontStyle: 'italic', marginTop: 10 },
-})
+  btn: { flex: 1, height: 56, borderRadius: BorderRadius.md, backgroundColor: colors.surface.white, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.surface.border, ...Shadow.sm },
+  btnText: { fontSize: FontSize.xl, color: colors.ink[900], fontWeight: '600', width: '100%', textAlign: 'center', fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium' },
+  clearBtn: { backgroundColor: colors.surface.white === '#18181b' ? '#3b1818' : '#fef2f2', borderWidth: 1, borderColor: colors.surface.white === '#18181b' ? '#5a2222' : '#fecaca' },
+  clearText: { fontSize: FontSize.xl, color: colors.status.error, fontWeight: '700', fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium' },
+  opBtn: { backgroundColor: colors.brand[50], borderWidth: 1, borderColor: colors.brand[100] },
+  opText: { fontSize: FontSize.xl, color: colors.brand[600], fontWeight: '700', fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium' },
+  evalBtn: { backgroundColor: colors.brand[500], borderColor: colors.brand[600] },
+  evalText: { fontSize: FontSize.xl, color: '#fff', fontWeight: '800', fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium' },
+  sciBtn: { flex: 1, height: 40, borderRadius: BorderRadius.sm, backgroundColor: colors.surface.soft, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.surface.border },
+  sciText: { fontSize: FontSize.sm, color: colors.brand[600], fontWeight: '700', fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium' },
+  historySection: { flex: 1, borderTopWidth: 1, borderTopColor: colors.surface.border, paddingTop: Spacing.sm },
+  historyTitle: { fontSize: FontSize.sm, fontWeight: '700', color: colors.ink[500], marginBottom: Spacing.xs, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium' },
+  historyCard: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.surface.border },
+  historyExpr: { fontSize: FontSize.xs, color: colors.ink[400], fontFamily: 'monospace' },
+  historyResult: { fontSize: FontSize.sm, color: colors.ink[900], fontWeight: '700', marginTop: 2, fontFamily: 'monospace' },
+  emptyHistory: { fontSize: FontSize.xs, color: colors.ink[300], fontStyle: 'italic', marginTop: 10, fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif' },
+}))

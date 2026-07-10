@@ -1,4 +1,5 @@
 import { apiGet, apiPost, apiPut, apiDelete } from './client'
+import { Platform } from 'react-native'
 
 // ── Tasks ──────────────────────────────────────────────────────────────────────
 export const tasksApi = {
@@ -51,10 +52,26 @@ export const calendarApi = {
 
 // ── Documents ──────────────────────────────────────────────────────────────────
 const BASE_URL = process.env.EXPO_PUBLIC_API_BASE_URL || 'http://localhost:8080/api/v1'
+import { api } from './client'
 export const documentsApi = {
   list: () => apiGet<any[]>('/documents'),
   remove: (id: string) => apiDelete<void>(`/documents/${id}`),
-  downloadUrl: (id: string) => `${BASE_URL}/documents/${id}/download`,
+  upload: (fileUri: string, fileName: string, fileType: string) => {
+    const formData = new FormData()
+    formData.append('file', {
+      uri: Platform.OS === 'ios' ? fileUri.replace('file://', '') : fileUri,
+      name: fileName,
+      type: fileType || 'image/jpeg',
+    } as any)
+    formData.append('scanned', 'false')
+    return api.post('/documents/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }).then(res => res.data)
+  },
+  getStorage: () => apiGet<{ usedBytes: number; limitBytes: number; planName: string; isPremium: boolean }>('/documents/storage'),
+  downloadUrl: (id: string) => `${api.defaults.baseURL}/documents/${id}/download`,
 }
 
 // ── Notifications ──────────────────────────────────────────────────────────────
