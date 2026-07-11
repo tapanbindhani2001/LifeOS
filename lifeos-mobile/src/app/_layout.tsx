@@ -5,6 +5,8 @@ import Toast from 'react-native-toast-message'
 import { AuthProvider } from '../context/AuthContext'
 import { ThemeProvider, useTheme } from '../context/ThemeContext'
 import { StatusBar } from 'expo-status-bar'
+import { useSyncLoop } from '../hooks/useSyncLoop'
+import { usePushToken } from '../hooks/usePushToken'
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -14,6 +16,8 @@ const queryClient = new QueryClient({
 
 function AppContent() {
   const { theme } = useTheme()
+  useSyncLoop() // Start background offline sync loop manager
+  usePushToken() // Request notification permission and register token
   return (
     <>
       <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />

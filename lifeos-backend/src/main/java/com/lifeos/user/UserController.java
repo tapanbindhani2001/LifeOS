@@ -4,6 +4,7 @@ import com.lifeos.common.response.ApiResponse;
 import com.lifeos.common.security.UserDetailsImpl;
 import com.lifeos.user.dto.UpdatePasswordRequest;
 import com.lifeos.user.dto.UpdateProfileRequest;
+import com.lifeos.user.dto.RegisterDeviceRequest;
 import com.lifeos.user.dto.UserResponse;
 import jakarta.validation.Valid;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -69,5 +70,21 @@ public class UserController {
     ) {
         userService.updatePassword(userDetails.getUser(), request);
         return ApiResponse.successWithMessage("Password updated successfully");
+    }
+
+    /**
+     * Register or update a user's device token for push notifications.
+     *
+     * @param userDetails Spring security principal wrapper
+     * @param request     device token payload
+     * @return standard ApiResponse with success message
+     */
+    @PostMapping("/devices/token")
+    public ApiResponse<Void> registerDeviceToken(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @Valid @RequestBody RegisterDeviceRequest request
+    ) {
+        userService.registerDevice(userDetails.getUser(), request);
+        return ApiResponse.successWithMessage("Device push token registered successfully");
     }
 }

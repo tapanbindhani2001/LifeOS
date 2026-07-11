@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   TextInput, Modal, ActivityIndicator, Alert, ScrollView
@@ -10,12 +10,54 @@ import { Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
 import { useTheme, makeStyles } from '../context/ThemeContext'
 import Toast from 'react-native-toast-message'
 import { router } from 'expo-router'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { syncManager } from '../utils/syncManager'
 
 export default function NotesScreen() {
   const qc = useQueryClient()
   const { colors } = useTheme()
   const styles = useStyles()
-  const { data: notes = [], isLoading } = useQuery({ queryKey: ['notes'], queryFn: notesApi.list })
+  const [draftNotes, setDraftNotes] = useState<any[]>([])
+
+  const loadDrafts = async () => {
+    const queue = await syncManager.getQueue()
+    const noteDrafts = queue
+      .filter((item) => item.type === 'NOTE')
+      .map((item) => ({
+        id: item.id,
+        ...item.payload,
+        isOfflineDraft: true,
+        updatedAt: new Date().toISOString()
+      }))
+    setDraftNotes(noteDrafts)
+  }
+
+  const { data: serverNotes = [], isLoading } = useQuery({ 
+    queryKey: ['notes'], 
+    queryFn: async () => {
+      try {
+        const list = await notesApi.list()
+        await AsyncStorage.setItem('cached_notes', JSON.stringify(list))
+        return list
+      } catch (err: any) {
+        const isNetwork = err.message && (
+          err.message.toLowerCase().includes('unable to reach') ||
+          err.message.toLowerCase().includes('network error')
+        )
+        if (isNetwork) {
+          const cached = await AsyncStorage.getItem('cached_notes')
+          if (cached) return JSON.parse(cached)
+        }
+        throw err
+      }
+    }
+  })
+
+  useEffect(() => {
+    loadDrafts()
+  }, [serverNotes])
+
+  const allNotes = [...draftNotes, ...serverNotes]
 
   const createNote = useMutation({
     mutationFn: notesApi.create,
@@ -25,7 +67,25 @@ export default function NotesScreen() {
       resetForm()
       Toast.show({ type: 'success', text1: 'Note created! 📝' })
     },
-    onError: (e: any) => Toast.show({ type: 'error', text1: e.message || 'Could not create note' }),
+    onError: async (e: any, variables: any) => {
+      const isNetwork = e.message && (
+        e.message.toLowerCase().includes('unable to reach') ||
+        e.message.toLowerCase().includes('network error')
+      )
+      if (isNetwork) {
+        await syncManager.addToQueue('NOTE', 'CREATE', variables)
+        setModalOpen(false)
+        resetForm()
+        await loadDrafts()
+        Toast.show({
+          type: 'info',
+          text1: 'Working offline ⏳',
+          text2: 'Note queued as draft; will sync when online.',
+        })
+      } else {
+        Toast.show({ type: 'error', text1: e.message || 'Could not create note' })
+      }
+    },
   })
 
   const updateNote = useMutation({
@@ -84,6 +144,11 @@ export default function NotesScreen() {
       return
     }
 
+    if (selectedNote && selectedNote.isOfflineDraft) {
+      Toast.show({ type: 'info', text1: 'Offline Draft', text2: 'Draft notes cannot be modified until synced.' })
+      return
+    }
+
     const payload = { title: title.trim(), content: content.trim(), pinned }
 
     if (selectedNote) {
@@ -94,6 +159,21 @@ export default function NotesScreen() {
   }
 
   const handleDelete = (id: string) => {
+    if (id.startsWith('draft_')) {
+      Alert.alert('Delete Draft', 'Remove this offline draft note?', [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            await syncManager.removeFromQueue(id)
+            await loadDrafts()
+            Toast.show({ type: 'info', text1: 'Draft deleted' })
+          },
+        },
+      ])
+      return
+    }
     Alert.alert('Delete Note', 'Are you sure you want to delete this note?', [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -109,7 +189,7 @@ export default function NotesScreen() {
   }
 
   // Filter and sort notes
-  const sorted = [...notes].sort((a: any, b: any) => {
+  const sorted = [...allNotes].sort((a: any, b: any) => {
     if (a.pinned !== b.pinned) return Number(b.pinned) - Number(a.pinned)
     return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
   })
@@ -135,7 +215,7 @@ export default function NotesScreen() {
           </TouchableOpacity>
           <View>
             <Text style={styles.title}>Notes</Text>
-            <Text style={styles.subtitle}>{notes.length} notes</Text>
+            <Text style={styles.subtitle}>{allNotes.length} notes</Text>
           </View>
         </View>
         <TouchableOpacity style={styles.addBtn} onPress={handleOpenNew}>
@@ -163,7 +243,18 @@ export default function NotesScreen() {
           keyExtractor={(item: any) => item.id}
           contentContainerStyle={styles.listContainer}
           renderItem={({ item }) => (
-            <TouchableOpacity style={[styles.noteCard, item.pinned && styles.pinnedCard]} onPress={() => handleOpenEdit(item)}>
+            <TouchableOpacity 
+              style={[
+                styles.noteCard, 
+                item.pinned && styles.pinnedCard,
+                item.isOfflineDraft && {
+                  borderStyle: 'dashed',
+                  borderWidth: 1.5,
+                  borderColor: colors.brand[300]
+                }
+              ]} 
+              onPress={() => handleOpenEdit(item)}
+            >
               <View style={styles.cardHeader}>
                 <Text style={styles.noteTitle} numberOfLines={1}>{item.title || 'Untitled Note'}</Text>
                 {item.pinned && <Text style={styles.pinIcon}>📌</Text>}
@@ -174,7 +265,7 @@ export default function NotesScreen() {
                 <Text style={[styles.noteContent, { color: colors.ink[400] }]}>No additional text</Text>
               )}
               <View style={styles.cardFooter}>
-                <Text style={styles.noteDate}>{formatNoteDate(item.updatedAt)}</Text>
+                <Text style={styles.noteDate}>{item.isOfflineDraft ? '⏳ Draft' : formatNoteDate(item.updatedAt)}</Text>
                 <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.trashBtn}>
                   <Text style={styles.trashText}>🗑️</Text>
                 </TouchableOpacity>

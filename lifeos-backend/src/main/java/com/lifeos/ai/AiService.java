@@ -15,12 +15,16 @@ import com.lifeos.tasks.TaskRepository;
 import com.lifeos.habit.HabitRepository;
 import com.lifeos.goal.GoalRepository;
 import com.lifeos.expense.ExpenseRepository;
+import com.lifeos.expense.dto.ScanReceiptResponse;
 import com.lifeos.subscription.SubscriptionPlan;
 import com.lifeos.subscription.SubscriptionStatus;
 import com.lifeos.subscription.SubscriptionRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDate;
+import java.util.Base64;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -322,6 +326,106 @@ public class AiService {
         AiConversation conv = aiConversationRepository.findByIdAndUserId(conversationId, user.getId())
                 .orElseThrow(() -> new ResourceNotFoundException("Conversation not found with id: " + conversationId));
         aiConversationRepository.delete(conv);
+    }
+
+    @Transactional(readOnly = true)
+    public ScanReceiptResponse scanReceipt(User user, byte[] imageBytes, String contentType) {
+        if (grokApiKey == null || grokApiKey.trim().isEmpty()) {
+            throw new BadRequestException("AI service error: Grok API Key is not set.");
+        }
+
+        try {
+            String base64Image = Base64.getEncoder().encodeToString(imageBytes);
+            String dataUrl = "data:" + (contentType != null ? contentType : "image/jpeg") + ";base64," + base64Image;
+
+            HttpClient client = HttpClient.newBuilder().build();
+            ObjectMapper mapper = new ObjectMapper();
+            
+            ObjectNode requestBody = mapper.createObjectNode();
+            requestBody.put("model", "llama-3.2-11b-vision-preview");
+            requestBody.put("temperature", 0.1);
+
+            ArrayNode messagesArray = mapper.createArrayNode();
+            ObjectNode messageNode = mapper.createObjectNode();
+            messageNode.put("role", "user");
+
+            ArrayNode contentArray = mapper.createArrayNode();
+            
+            // Text Prompt Content
+            ObjectNode textContent = mapper.createObjectNode();
+            textContent.put("type", "text");
+            textContent.put("text", "Analyze this receipt image. Extract: merchant name, total amount spent, transaction date (format: YYYY-MM-DD), and appropriate expense category (must be one of: FOOD, RENT, TRANSPORT, SHOPPING, BILLS, ENTERTAINMENT, HEALTH, OTHER). Return only a valid JSON object matching this schema: {\"merchant\": \"name\", \"amount\": 120.50, \"date\": \"YYYY-MM-DD\", \"category\": \"CATEGORY\"} without markdown wrappers, backticks, or other text.");
+            contentArray.add(textContent);
+
+            // Image Content
+            ObjectNode imageContent = mapper.createObjectNode();
+            imageContent.put("type", "image_url");
+            ObjectNode imageUrlNode = mapper.createObjectNode();
+            imageUrlNode.put("url", dataUrl);
+            imageContent.set("image_url", imageUrlNode);
+            contentArray.add(imageContent);
+
+            messageNode.set("content", contentArray);
+            messagesArray.add(messageNode);
+            requestBody.set("messages", messagesArray);
+
+            String jsonPayload = mapper.writeValueAsString(requestBody);
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.groq.com/openai/v1/chat/completions"))
+                    .header("Content-Type", "application/json")
+                    .header("Authorization", "Bearer " + grokApiKey)
+                    .POST(HttpRequest.BodyPublishers.ofString(jsonPayload))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() != 200) {
+                throw new BadRequestException("AI receipt scanning failed. Groq API returned status code " + response.statusCode() + ": " + response.body());
+            }
+
+            JsonNode rootNode = mapper.readTree(response.body());
+            JsonNode choicesNode = rootNode.path("choices");
+            if (!choicesNode.isArray() || choicesNode.size() == 0) {
+                throw new BadRequestException("No response choices returned from AI vision model.");
+            }
+
+            String aiReply = choicesNode.get(0).path("message").path("content").asText("");
+            
+            // Strip markdown JSON code blocks if the AI model included them despite instructions
+            if (aiReply.contains("```")) {
+                aiReply = aiReply.replaceAll("```json", "").replaceAll("```", "").trim();
+            }
+
+            JsonNode replyJson = mapper.readTree(aiReply);
+            String merchant = replyJson.path("merchant").asText("Scanned Merchant");
+            Double amount = replyJson.path("amount").asDouble(0.0);
+            String date = replyJson.path("date").asText(LocalDate.now().toString());
+            String category = replyJson.path("category").asText("OTHER").toUpperCase();
+
+            // Validate category
+            boolean validCategory = false;
+            for (String cat : List.of("FOOD", "RENT", "TRANSPORT", "SHOPPING", "BILLS", "ENTERTAINMENT", "HEALTH", "OTHER")) {
+                if (cat.equals(category)) {
+                    validCategory = true;
+                    break;
+                }
+            }
+            if (!validCategory) {
+                category = "OTHER";
+            }
+
+            return ScanReceiptResponse.builder()
+                    .merchant(merchant)
+                    .amount(amount)
+                    .date(date)
+                    .category(category)
+                    .build();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new BadRequestException("Failed to scan receipt image: " + e.getMessage());
+        }
     }
 
     private void validatePremiumUser(User user) {

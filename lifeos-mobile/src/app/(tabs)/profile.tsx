@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Image, Modal, ActivityIndicator, Platform } from 'react-native'
+import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView, Image, Modal, ActivityIndicator, Platform, Switch } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useAuth } from '../../context/AuthContext'
 import { router } from 'expo-router'
@@ -11,6 +11,7 @@ import * as ImagePicker from 'expo-image-picker'
 import Svg, { Path, Rect, Circle, Line } from 'react-native-svg'
 import { useQuery } from '@tanstack/react-query'
 import { documentsApi } from '../../api/features'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 
 type IconName = 'credit-card' | 'refresh-cw' | 'log-out' | 'info'
 
@@ -81,6 +82,7 @@ export default function ProfileScreen() {
   const [profilePicture, setProfilePicture] = useState(user?.profilePicture || '')
   const [updatingProfile, setUpdatingProfile] = useState(false)
   const [checkingUpdates, setCheckingUpdates] = useState(false)
+  const [useBiometrics, setUseBiometrics] = useState(false)
 
   // Fetch Storage Summary for visual Settings indicator
   const { data: storageInfo, isLoading: isStorageLoading } = useQuery({
@@ -101,6 +103,24 @@ export default function ProfileScreen() {
     }
   }, [user])
 
+  // Load biometrics preference on mount
+  useEffect(() => {
+    async function loadBiometricsPref() {
+      const saved = await AsyncStorage.getItem('vault_use_biometrics')
+      setUseBiometrics(saved === 'true')
+    }
+    loadBiometricsPref()
+  }, [])
+
+  const handleToggleBiometrics = async (val: boolean) => {
+    setUseBiometrics(val)
+    await AsyncStorage.setItem('vault_use_biometrics', val ? 'true' : 'false')
+    Toast.show({
+      type: 'success',
+      text1: val ? 'Biometric unlock enabled' : 'Biometric unlock disabled'
+    })
+  }
+
   const handlePickImage = async () => {
     try {
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync()
@@ -110,7 +130,7 @@ export default function ProfileScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.3,
@@ -211,6 +231,23 @@ export default function ProfileScreen() {
                   <Text style={[styles.themeBtnText, theme === 'dark' && styles.themeBtnTextActive]}>🌙</Text>
                 </TouchableOpacity>
               </View>
+            </View>
+
+            {/* Divider */}
+            <View style={{ height: 1, backgroundColor: colors.surface.border }} />
+
+            {/* Biometric Unlock Toggle */}
+            <View style={styles.preferenceRow}>
+              <View style={styles.preferenceLeft}>
+                <Text style={styles.preferenceLabel}>Biometric Unlock</Text>
+                <Text style={styles.preferenceSubText}>Use Face ID / Touch ID for Private Vault</Text>
+              </View>
+              <Switch
+                value={useBiometrics}
+                onValueChange={handleToggleBiometrics}
+                trackColor={{ false: colors.surface.border, true: colors.brand[500] }}
+                thumbColor={Platform.OS === 'android' ? '#fff' : undefined}
+              />
             </View>
           </View>
         </View>

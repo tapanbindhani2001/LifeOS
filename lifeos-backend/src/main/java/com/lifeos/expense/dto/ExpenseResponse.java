@@ -27,4 +27,5 @@ public class ExpenseResponse {
     private LocalDate transactionDate;
     private Instant createdAt;
     private Instant updatedAt;
+    private String budgetAlert;
 }

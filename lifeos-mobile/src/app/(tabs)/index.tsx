@@ -180,7 +180,7 @@ export default function DashboardScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.3,
@@ -250,7 +250,7 @@ export default function DashboardScreen() {
   
   const { data: tasks = [], isLoading: tasksLoading } = useQuery({ queryKey: ['tasks'], queryFn: tasksApi.list })
   const { data: habits = [], isLoading: habitsLoading } = useQuery({ queryKey: ['habits'], queryFn: habitsApi.list })
-  const { data: summary, isLoading: expLoading } = useQuery({ queryKey: ['expenses', 'summary'], queryFn: expensesApi.summary })
+  const { data: summary, isLoading: expLoading } = useQuery({ queryKey: ['expenses', 'summary'], queryFn: () => expensesApi.summary() })
   const { data: expenses = [], isLoading: expListLoading } = useQuery({ queryKey: ['expenses'], queryFn: expensesApi.list })
   const { data: events = [], isLoading: calLoading } = useQuery({ queryKey: ['calendar'], queryFn: calendarApi.list })
 

@@ -35,4 +35,10 @@ public class CreateExpenseRequest {
 
     @NotNull(message = "Transaction date is required")
     private LocalDate transactionDate;
+
+    /**
+     * Android SMS message ID. If provided, the backend will skip insertion and return
+     * the existing transaction silently (idempotent import).
+     */
+    private String smsExternalId;
 }

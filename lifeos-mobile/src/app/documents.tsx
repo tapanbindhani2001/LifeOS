@@ -58,6 +58,7 @@ export default function DocumentsScreen() {
   const [authToken, setAuthToken] = useState<string | null>(null)
   const [isBiometricSupported, setIsBiometricSupported] = useState(false)
   const [isBiometricEnrolled, setIsBiometricEnrolled] = useState(false)
+  const [useBiometrics, setUseBiometrics] = useState(false)
 
   // Filtering State
   const [activeTab, setActiveTab] = useState<TabType>('all')
@@ -129,7 +130,13 @@ export default function DocumentsScreen() {
       if (compatible) {
         const enrolled = await LocalAuthentication.isEnrolledAsync()
         setIsBiometricEnrolled(enrolled)
-        if (enrolled && !isUnlocked && hasPasscode && passcodeMode === 'enter') {
+        
+        // Check user biometric preferences toggle state
+        const savedPref = await AsyncStorage.getItem('vault_use_biometrics')
+        const isOptedIn = savedPref === 'true'
+        setUseBiometrics(isOptedIn)
+
+        if (isOptedIn && enrolled && !isUnlocked && hasPasscode && passcodeMode === 'enter') {
           // Auto trigger biometric scan overlay immediately
           triggerBiometricUnlock()
         }
@@ -382,7 +389,7 @@ export default function DocumentsScreen() {
             ))}
           </View>
 
-          {passcodeMode === 'enter' && isBiometricSupported && (
+          {passcodeMode === 'enter' && useBiometrics && isBiometricSupported && (
             <TouchableOpacity onPress={triggerBiometricUnlock} style={styles.biometricPromptLink}>
               <Text style={styles.biometricPromptLinkText}>Touch / Face ID to Unlock</Text>
             </TouchableOpacity>
@@ -404,7 +411,7 @@ export default function DocumentsScreen() {
               </View>
             ))}
             <View style={styles.keypadRow}>
-              {passcodeMode === 'enter' && isBiometricSupported ? (
+              {passcodeMode === 'enter' && useBiometrics && isBiometricSupported ? (
                 <TouchableOpacity style={[styles.keypadBtn, styles.keypadUtilityBtn]} onPress={triggerBiometricUnlock}>
                   <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.brand[500]} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
                     <Path d="M12 22a10 10 0 0 0 8-16.73M22 12a10 10 0 0 0-19-4.32" />

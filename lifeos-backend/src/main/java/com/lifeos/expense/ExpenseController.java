@@ -5,11 +5,15 @@ import com.lifeos.common.security.UserDetailsImpl;
 import com.lifeos.expense.dto.CreateExpenseRequest;
 import com.lifeos.expense.dto.ExpenseResponse;
 import com.lifeos.expense.dto.ExpenseSummaryResponse;
+import com.lifeos.expense.dto.MonthlyStatEntry;
 import com.lifeos.expense.dto.UpdateExpenseRequest;
+import com.lifeos.expense.dto.ScanReceiptResponse;
+import com.lifeos.ai.AiService;
 import jakarta.validation.Valid;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -23,14 +27,17 @@ import java.util.UUID;
 public class ExpenseController {
 
     private final ExpenseService expenseService;
+    private final AiService aiService;
 
     /**
      * Constructs ExpenseController.
      *
      * @param expenseService service handling expense business rules
+     * @param aiService AI assistant service for OCR vision tasks
      */
-    public ExpenseController(ExpenseService expenseService) {
+    public ExpenseController(ExpenseService expenseService, AiService aiService) {
         this.expenseService = expenseService;
+        this.aiService = aiService;
     }
 
     /**
@@ -129,5 +136,37 @@ public class ExpenseController {
     ) {
         expenseService.deleteExpense(userDetails.getUser(), id);
         return ApiResponse.successWithMessage("Transaction deleted successfully");
+    }
+
+    /**
+     * Returns monthly income vs expense aggregates for trend charts.
+     *
+     * @param userDetails Spring security principal wrapper
+     * @param months      number of months to look back (default 6)
+     * @return standard ApiResponse containing list of MonthlyStatEntry DTOs
+     */
+    @GetMapping("/monthly-stats")
+    public ApiResponse<List<MonthlyStatEntry>> getMonthlySummary(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam(defaultValue = "6") int months
+    ) {
+        List<MonthlyStatEntry> response = expenseService.getMonthlySummary(userDetails.getUser(), months);
+        return ApiResponse.success(response, "Fetched monthly trend data successfully");
+    }
+
+    /**
+     * Scans a receipt photo to extract transaction parameters using AI OCR.
+     */
+    @PostMapping("/scan")
+    public ApiResponse<ScanReceiptResponse> scanReceipt(
+            @AuthenticationPrincipal UserDetailsImpl userDetails,
+            @RequestParam("file") MultipartFile file
+    ) throws Exception {
+        ScanReceiptResponse response = aiService.scanReceipt(
+                userDetails.getUser(),
+                file.getBytes(),
+                file.getContentType()
+        );
+        return ApiResponse.success(response, "Receipt scanned successfully");
     }
 }

@@ -28,10 +28,28 @@ export const notesApi = {
 // ── Expenses ───────────────────────────────────────────────────────────────────
 export const expensesApi = {
   list: () => apiGet<any[]>('/expenses'),
-  summary: () => apiGet<any>('/expenses/summary'),
+  summary: (start?: string, end?: string) => {
+    const params = new URLSearchParams()
+    if (start) params.set('start', start)
+    if (end) params.set('end', end)
+    const qs = params.toString()
+    return apiGet<any>(`/expenses/summary${qs ? `?${qs}` : ''}`)
+  },
+  monthlySummary: (months = 6) => apiGet<any[]>(`/expenses/monthly-stats?months=${months}`),
   create: (data: any) => apiPost<any>('/expenses', data),
   update: (id: string, data: any) => apiPut<any>(`/expenses/${id}`, data),
   delete: (id: string) => apiDelete(`/expenses/${id}`),
+  scanReceipt: (fileUri: string, fileName: string, fileType: string) => {
+    const formData = new FormData()
+    formData.append('file', {
+      uri: Platform.OS === 'ios' ? fileUri.replace('file://', '') : fileUri,
+      name: fileName,
+      type: fileType || 'image/jpeg',
+    } as any)
+    return api.post('/expenses/scan', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(res => res.data)
+  },
 }
 
 // ── Goals ──────────────────────────────────────────────────────────────────────
@@ -105,4 +123,10 @@ export const budgetApi = {
   list: () => apiGet<any[]>('/budgets'),
   upsert: (payload: { category: string; monthlyLimit: number }) => apiPost<any>('/budgets', payload),
   remove: (id: string) => apiDelete<void>(`/budgets/${id}`),
+}
+
+// ── Devices ────────────────────────────────────────────────────────────────────
+export const devicesApi = {
+  registerToken: (expoPushToken: string, platform?: string) =>
+    apiPost<void>('/users/devices/token', { expoPushToken, platform }),
 }

@@ -35,6 +35,16 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     boolean existsByUserIdAndTitle(UUID userId, String title);
 
     /**
+     * Checks if a notification with specific title exists for a user after a certain time (e.g. within last 24 hours).
+     *
+     * @param userId owner user ID
+     * @param title  notification title
+     * @param time   starting timestamp limit
+     * @return true if exists, false otherwise
+     */
+    boolean existsByUserIdAndTitleAndCreatedAtAfter(UUID userId, String title, java.time.Instant time);
+
+    /**
      * Counts the total number of unread notifications for a user (for UI badge updates).
      *
      * @param userId the owner user UUID

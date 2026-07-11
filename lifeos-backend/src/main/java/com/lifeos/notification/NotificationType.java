@@ -6,5 +6,6 @@ package com.lifeos.notification;
 public enum NotificationType {
     SYSTEM,
     REMINDER,
-    ALERT
+    ALERT,
+    BUDGET_ALERT
 }

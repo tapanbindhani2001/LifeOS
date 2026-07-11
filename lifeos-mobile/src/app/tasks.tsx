@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   View, Text, FlatList, StyleSheet, TouchableOpacity,
   TextInput, Modal, ActivityIndicator, Alert
@@ -9,6 +9,8 @@ import { tasksApi } from '../api/features'
 import { Spacing, BorderRadius, FontSize, Shadow } from '../constants/theme'
 import { useTheme, makeStyles } from '../context/ThemeContext'
 import Toast from 'react-native-toast-message'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { syncManager } from '../utils/syncManager'
 
 const PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
 
@@ -17,12 +19,76 @@ export default function TasksScreen() {
   const { colors } = useTheme()
   const styles = useStyles()
   
-  const { data: tasks = [], isLoading } = useQuery({ queryKey: ['tasks'], queryFn: tasksApi.list })
+  const [draftTasks, setDraftTasks] = useState<any[]>([])
+
+  const loadDrafts = async () => {
+    const queue = await syncManager.getQueue()
+    const taskDrafts = queue
+      .filter((item) => item.type === 'TASK')
+      .map((item) => ({
+        id: item.id,
+        ...item.payload,
+        isOfflineDraft: true,
+      }))
+    setDraftTasks(taskDrafts)
+  }
+
+  const { data: serverTasks = [], isLoading } = useQuery({ 
+    queryKey: ['tasks'], 
+    queryFn: async () => {
+      try {
+        const list = await tasksApi.list()
+        await AsyncStorage.setItem('cached_tasks', JSON.stringify(list))
+        return list
+      } catch (err: any) {
+        const isNetwork = err.message && (
+          err.message.toLowerCase().includes('unable to reach') ||
+          err.message.toLowerCase().includes('network error')
+        )
+        if (isNetwork) {
+          const cached = await AsyncStorage.getItem('cached_tasks')
+          if (cached) return JSON.parse(cached)
+        }
+        throw err
+      }
+    }
+  })
+
+  useEffect(() => {
+    loadDrafts()
+  }, [serverTasks])
+
+  const allTasks = [...draftTasks, ...serverTasks]
 
   const createTask = useMutation({
     mutationFn: tasksApi.create,
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tasks'] }); setModalOpen(false); setTitle(''); setDescription('') },
-    onError: (e: any) => Toast.show({ type: 'error', text1: e.message }),
+    onSuccess: () => { 
+      qc.invalidateQueries({ queryKey: ['tasks'] })
+      setModalOpen(false)
+      setTitle('')
+      setDescription('') 
+      Toast.show({ type: 'success', text1: 'Task created! 📝' })
+    },
+    onError: async (e: any, variables: any) => {
+      const isNetwork = e.message && (
+        e.message.toLowerCase().includes('unable to reach') ||
+        e.message.toLowerCase().includes('network error')
+      )
+      if (isNetwork) {
+        await syncManager.addToQueue('TASK', 'CREATE', variables)
+        setModalOpen(false)
+        setTitle('')
+        setDescription('')
+        await loadDrafts()
+        Toast.show({
+          type: 'info',
+          text1: 'Working offline ⏳',
+          text2: 'Task queued as draft; will sync when online.',
+        })
+      } else {
+        Toast.show({ type: 'error', text1: e.message || 'Could not create task' })
+      }
+    },
   })
 
   const updateTask = useMutation({
@@ -53,11 +119,30 @@ export default function TasksScreen() {
   }
 
   const handleToggle = (task: any) => {
+    if (task.isOfflineDraft) {
+      Toast.show({ type: 'info', text1: 'Offline Draft', text2: 'This task will be checkable once synced.' })
+      return
+    }
     const newStatus = task.status === 'DONE' ? 'TODO' : 'DONE'
     updateTask.mutate({ id: task.id, data: { ...task, status: newStatus } })
   }
 
   const handleDelete = (id: string) => {
+    if (id.startsWith('draft_')) {
+      Alert.alert('Delete Draft', 'Remove this offline draft task?', [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive', 
+          onPress: async () => {
+            await syncManager.removeFromQueue(id)
+            await loadDrafts()
+            Toast.show({ type: 'info', text1: 'Draft task deleted' })
+          } 
+        },
+      ])
+      return
+    }
     Alert.alert('Delete Task', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => deleteTask.mutate(id) },
@@ -69,22 +154,29 @@ export default function TasksScreen() {
       <View style={styles.header}>
         <View>
           <Text style={styles.title}>Tasks</Text>
-          <Text style={styles.subtitle}>{tasks.length} total</Text>
+          <Text style={styles.subtitle}>{allTasks.length} total</Text>
         </View>
         <TouchableOpacity style={styles.addBtn} onPress={() => setModalOpen(true)}>
           <Text style={styles.addBtnText}>+ Add</Text>
         </TouchableOpacity>
       </View>
-
+ 
       {isLoading ? (
         <ActivityIndicator color={colors.brand[500]} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
-          data={tasks}
+          data={allTasks}
           keyExtractor={(item: any) => item.id}
           contentContainerStyle={{ padding: Spacing.lg, paddingTop: 0 }}
           renderItem={({ item }) => (
-            <View style={styles.taskCard}>
+            <View style={[
+              styles.taskCard,
+              item.isOfflineDraft && {
+                borderStyle: 'dashed',
+                borderWidth: 1.5,
+                borderColor: colors.brand[300],
+              }
+            ]}>
               <TouchableOpacity onPress={() => handleToggle(item)} style={styles.checkbox}>
                 {item.status === 'DONE' && <Text style={styles.checkmark}>✓</Text>}
               </TouchableOpacity>
@@ -96,6 +188,11 @@ export default function TasksScreen() {
                   <Text style={styles.taskDesc} numberOfLines={1}>{item.description}</Text>
                 ) : null}
                 <View style={styles.tagRow}>
+                  {item.isOfflineDraft && (
+                    <View style={[styles.tag, { backgroundColor: colors.status.warning + '20' }]}>
+                      <Text style={[styles.tagText, { color: colors.status.warning, fontWeight: '700' }]}>⏳ Draft</Text>
+                    </View>
+                  )}
                   <View style={[styles.tag, { backgroundColor: (priorityColor[item.priority] ?? colors.brand[500]) + '20' }]}>
                     <Text style={[styles.tagText, { color: priorityColor[item.priority] ?? colors.brand[500] }]}>{item.priority}</Text>
                   </View>

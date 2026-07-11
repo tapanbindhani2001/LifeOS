@@ -16,6 +16,8 @@ import java.util.UUID;
 @Table(name = "expenses", indexes = {
         @Index(name = "idx_expenses_user_id", columnList = "user_id"),
         @Index(name = "idx_expenses_user_date", columnList = "user_id, transaction_date")
+}, uniqueConstraints = {
+        @UniqueConstraint(name = "uq_expenses_user_sms_id", columnNames = {"user_id", "sms_external_id"})
 })
 @Getter
 @Setter
@@ -48,4 +50,11 @@ public class Expense extends BaseAuditEntity {
 
     @Column(name = "transaction_date", nullable = false)
     private LocalDate transactionDate;
+
+    /**
+     * Android SMS message ID (sms._id) used to deduplicate auto-imported SMS transactions.
+     * Nullable for manually created transactions. Unique per user when present.
+     */
+    @Column(name = "sms_external_id", nullable = true, length = 64)
+    private String smsExternalId;
 }
